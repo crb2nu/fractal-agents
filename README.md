@@ -29,6 +29,21 @@ We utilize Redis to store the state of the fractal tree.
 pip install -r requirements.txt
 ```
 
+## Environment Configuration
+
+This project uses `direnv` for automated environment management.
+
+1.  **Copy the example env:**
+    ```bash
+    cp .env.example .env
+    ```
+2.  **Allow direnv:**
+    ```bash
+    direnv allow
+    ```
+
+The `.envrc` automatically sources your cluster's `dev-env.sh` and your local `ai.env` secrets, then applies project-specific overrides from `.env`.
+
 ## Usage
 
 ```python
