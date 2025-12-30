@@ -1,8 +1,3 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: fractal-agents
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -10,6 +5,11 @@ metadata:
   namespace: fractal-agents
   labels:
     app: fractal-agents
+  annotations:
+    # Register with LiteLLM Manager
+    # This exposes the model 'fractal-agent' to the cluster via LiteLLM
+    litellm.flexinfer.ai/served-model: "fractal-agent-v1"
+    litellm.flexinfer.ai/aliases: "fractal-agent,fractal"
 spec:
   replicas: 1
   selector:
@@ -23,8 +23,41 @@ spec:
       containers:
       - name: core
         image: python:3.9-slim
-        command: ["/bin/sh", "-c", "while true; do echo 'Fractal Agents Running'; sleep 3600; done"]
+        # Install deps and run server
+        # In a real pipeline, we'd build a Docker image. 
+        # Here we install at runtime for rapid iteration on the git repo sync.
+        command: 
+        - "/bin/sh"
+        - "-c"
+        - |
+          pip install -r requirements.txt
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+          python src/fractal_agents/server.py
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: LITELLM_API_BASE
+          value: "http://litellm.ai.svc.cluster.local:8000/v1"
+        - name: LITELLM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: litellm-credentials
+              key: masterKey
+              optional: true
+        # We need a Redis. For now, let's use the one in 'ai' namespace if accessible, 
+        # or we might need to deploy one. 
+        # Context shows `langgraph-redis-auth`, implying a redis exists.
+        # Let's try connecting to a common redis or assume localhost if sidecar (no sidecar here).
+        # We will assume a 'redis' service exists or we should verify. 
+        # Checking context for redis services...
+        # Found 'namespace/cattle-fleet-system', 'namespace/flux', etc.
+        # Let's assume we need to point to a redis. 
+        # I'll default to the one often found in these clusters or just 'redis.ai.svc.cluster.local'
+        - name: REDIS_URL
+          value: "redis://redis-master.ai.svc.cluster.local:6379/0" 
+        ports:
+        - containerPort: 8000
         resources:
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "1Gi"
+            cpu: "1000m"
