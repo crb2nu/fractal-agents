@@ -49,12 +49,12 @@ class LiteLLM(LLMInterface):
         
         # Map logical intents to specific model aliases found in the cluster
         self.model_map = {
-            "general": "qwen2.5-7b",    # qwen2.5-7b
+            "general": "reasoning",     # Use reasoning as it's verified working
             "reasoning": "reasoning",   # nemotron3-nano
             "vision": "vision",         # qwen3-vl-8b
-            "speculative": "qwen2.5-7b", 
-            "fast": "qwen2.5-7b",
-            "summary": "qwen2.5-7b"
+            "speculative": "reasoning", 
+            "fast": "reasoning",
+            "summary": "reasoning"
         }
 
     def _get_model(self, hint: str) -> str:
