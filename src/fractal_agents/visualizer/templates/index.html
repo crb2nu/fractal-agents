@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fractal AI Dashboard - Mandelbrot Mind</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #050507; color: #eee; margin: 0; overflow: hidden; }
+        #charts { display: flex; width: 100vw; height: 100vh; }
+        .chart-container { flex: 1; border-right: 1px solid #1a1a1f; position: relative; }
+        #sunburst-container { flex: 0.4; }
+        .label { position: absolute; top: 15px; left: 15px; font-weight: 700; color: #00d4ff; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; z-index: 10; pointer-events: none;}
+        
+        /* Tree Styling */
+        .node circle { stroke-width: 2px; transition: all 0.3s ease; cursor: pointer; }
+        .node circle:hover { stroke: #fff !important; filter: brightness(1.5); }
+        .node text { font-size: 10px; fill: #888; font-weight: 400; pointer-events: none; }
+        .link { fill: none; stroke: #1a1a1f; stroke-width: 1.5px; }
+        
+        /* Status Colors */
+        .status-COMPLETED { fill: #4caf50 !important; stroke: #2e7d32; }
+        .status-IN_PROGRESS { fill: #ff9800 !important; stroke: #ef6c00; box-shadow: 0 0 10px #ff9800; }
+        .status-SPLIT { fill: #2196f3 !important; stroke: #1565c0; }
+        .status-PENDING { fill: #333 !important; stroke: #444; }
+
+        /* Animation */
+        @keyframes pulse {
+            0% { r: 10; opacity: 1; }
+            50% { r: 14; opacity: 0.7; }
+            100% { r: 10; opacity: 1; }
+        }
+        .status-IN_PROGRESS { animation: pulse 2s infinite; }
+
+        /* Zoom Info */
+        #controls { position: absolute; bottom: 15px; left: 15px; font-size: 10px; color: #444; }
+    </style>
+</head>
+<body>
+    <div id="charts">
+        <div id="tree-container" class="chart-container">
+            <div class="label">Mandelbrot Mind (Zoom/Pan Canvas)</div>
+            <svg id="tree-svg"></svg>
+            <div id="controls">Wheel to Zoom | Drag to Pan</div>
+        </div>
+        <div id="sunburst-container" class="chart-container">
+            <div class="label">Recursive Depth (Sunburst)</div>
+            <svg id="sunburst-svg"></svg>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        let rawNodes = [];
+        let svg, g, zoom;
+
+        ws.onmessage = (event) => {
+            rawNodes = JSON.parse(event.data);
+            updateCharts();
+        };
+
+        function buildHierarchy(nodes) {
+            if (nodes.length === 0) return null;
+            const nodeMap = {};
+            nodes.forEach(n => nodeMap[n.id] = { ...n, children: [] });
+            let root = null;
+            nodes.forEach(n => {
+                if (n.parent_id && nodeMap[n.parent_id]) {
+                    nodeMap[n.parent_id].children.push(nodeMap[n.id]);
+                } else if (!n.parent_id) {
+                    root = nodeMap[n.id];
+                }
+            });
+            return root;
+        }
+
+        function updateCharts() {
+            const data = buildHierarchy(rawNodes);
+            if (!data) return;
+            drawTree(data);
+            drawSunburst(data);
+        }
+
+        // --- Mandelbrot Tree Logic ---
+        function initTree() {
+            const width = document.getElementById('tree-container').clientWidth;
+            const height = document.getElementById('tree-container').clientHeight;
+            
+            svg = d3.select("#tree-svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            g = svg.append("g");
+
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 10])
+                .on("zoom", (event) => {
+                    g.attr("transform", event.transform);
+                });
+
+            svg.call(zoom);
+        }
+
+        function drawTree(data) {
+            if (!g) initTree();
+            const width = document.getElementById('tree-container').clientWidth;
+            const height = document.getElementById('tree-container').clientHeight;
+
+            const tree = d3.tree().nodeSize([60, 200]);
+            const root = d3.hierarchy(data);
+            tree(root);
+
+            // Center initially if first run
+            if (rawNodes.length > 0 && g.selectAll("*").empty()) {
+                svg.call(zoom.translateTo, 100, height/2);
+            }
+
+            // Update Links
+            const links = g.selectAll(".link")
+                .data(root.links(), d => d.target.data.id);
+
+            links.enter().append("path")
+                .attr("class", "link")
+                .merge(links)
+                .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x));
+
+            links.exit().remove();
+
+            // Update Nodes
+            const nodes = g.selectAll(".node")
+                .data(root.descendants(), d => d.data.id);
+
+            const nodeEnter = nodes.enter().append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.y},${d.x})`);
+
+            nodeEnter.append("circle").attr("r", 10);
+            nodeEnter.append("text")
+                .attr("dy", ".35em")
+                .attr("x", d => d.children ? -15 : 15)
+                .style("text-anchor", d => d.children ? "end" : "start");
+
+            const nodeMerge = nodeEnter.merge(nodes);
+            
+            nodeMerge.select("circle")
+                .attr("class", d => `status-${d.data.status}`);
+
+            nodeMerge.select("text")
+                .text(d => d.data.goal.substring(0, 30) + (d.data.goal.length > 30 ? "..." : ""));
+
+            nodes.exit().remove();
+        }
+
+        // --- D3 Sunburst Logic ---
+        function drawSunburst(data) {
+            const width = document.getElementById('sunburst-container').clientWidth;
+            const height = document.getElementById('sunburst-container').clientHeight;
+            const radius = Math.min(width, height) / 2.5;
+
+            const svgS = d3.select("#sunburst-svg")
+                .attr("width", width)
+                .attr("height", height)
+                .html("")
+                .append("g")
+                .attr("transform", `translate(${width / 2},${height / 2})`);
+
+            const partition = d3.partition().size([2 * Math.PI, radius]);
+            const root = d3.hierarchy(data).sum(d => 1);
+            partition(root);
+
+            const arc = d3.arc()
+                .startAngle(d => d.x0)
+                .endAngle(d => d.x1)
+                .innerRadius(d => d.y0)
+                .outerRadius(d => d.y1);
+
+            svgS.selectAll("path")
+                .data(root.descendants())
+                .enter().append("path")
+                .attr("display", d => d.depth ? null : "none")
+                .attr("d", arc)
+                .style("stroke", "#050507")
+                .style("stroke-width", "1px")
+                .attr("class", d => `status-${d.data.status}`);
+        }
+
+        window.addEventListener('resize', () => {
+            const width = document.getElementById('tree-container').clientWidth;
+            const height = document.getElementById('tree-container').clientHeight;
+            svg.attr("width", width).attr("height", height);
+        });
+    </script>
+</body>
+</html>

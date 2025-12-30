@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fractal-visualizer
+  namespace: ai
+  labels:
+    app: fractal-visualizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fractal-visualizer
+  template:
+    metadata:
+      labels:
+        app: fractal-visualizer
+    spec:
+      initContainers:
+      - name: clone
+        image: alpine/git
+        command:
+        - sh
+        - -c
+        - |
+          git clone http://oauth2:$(GIT_PASSWORD)@gitlab.gitlab.svc.cluster.local:8080/libs/fractal-agents.git /app
+        env:
+        - name: GIT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gitops-gitlab
+              key: password
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+      containers:
+      - name: visualizer
+        image: python:3.9-slim
+        workingDir: /app
+        command: 
+        - "/bin/sh"
+        - "-c"
+        - |
+          pip install -r requirements.txt
+          export PYTHONPATH=$PYTHONPATH:/app/src
+          uvicorn fractal_agents.visualizer.app:app --host 0.0.0.0 --port 8080
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: langgraph-redis-auth
+              key: redis-password
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@langgraph-redis-master.ai.svc.cluster.local:6379/0"
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: app-code
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fractal-visualizer
+  namespace: ai
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: fractal-visualizer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fractal-visualizer
+  namespace: ai
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - fractal.flexinfer.ai
+    secretName: fractal-visualizer-tls
+  rules:
+  - host: fractal.flexinfer.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fractal-visualizer
+            port:
+              number: 80
