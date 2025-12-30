@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any, Union
 from fractal_agents.core import FractalNode
 from fractal_agents.memory import FractalMemory
 from fractal_agents.llm_interface import LiteLLM
+from fractal_agents.knowledge import FractalKnowledgeGraph, QdrantFractalStore
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -17,11 +18,20 @@ app = FastAPI(title="Fractal Agent API")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 LITELLM_API_BASE = os.getenv("LITELLM_API_BASE", "http://litellm.ai.svc.cluster.local:8000/v1")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "sk-litellm-local")
+QDRANT_URL = os.getenv("QDRANT_URL", "http://192.168.50.176:6333")
 
 # Initialize Shared Components
 memory = FractalMemory(redis_url=REDIS_URL)
-# We assume the agent itself uses the 'general' or 'reasoning' models from LiteLLM
 llm = LiteLLM(api_base=LITELLM_API_BASE, api_key=LITELLM_API_KEY)
+
+# Initialize Knowledge Graph
+try:
+    knowledge_store = QdrantFractalStore(url=QDRANT_URL)
+    knowledge_graph = FractalKnowledgeGraph(store=knowledge_store, llm_client=llm)
+    logger.info("Fractal Knowledge Graph Initialized")
+except Exception as e:
+    logger.warning(f"Could not initialize Knowledge Graph: {e}")
+    knowledge_graph = None
 
 # --- OpenAI Compatible Schemas ---
 
@@ -85,14 +95,12 @@ async def chat_completions(request: ChatCompletionRequest):
     logger.info(f"Starting Fractal Task: {goal[:100]}...")
 
     # Initialize Root Node
-    # We use a modest max_depth to prevent timeouts on the HTTP request
-    # Ideally, this should be async/background for very deep trees, 
-    # but for an OpenAI-compatible proxy, we must block until done.
     root = FractalNode(
         goal=goal,
         context=context,
         llm=llm,
         memory=memory,
+        knowledge=knowledge_graph,
         max_depth=2, # Keep depth shallow for synchronous response
         task_type="general" 
     )

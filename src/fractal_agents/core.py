@@ -2,6 +2,7 @@ import uuid
 from typing import List, Optional, Dict, Any
 from .llm_interface import LLMInterface, MockLLM, LiteLLM
 from .memory import FractalMemory
+from .knowledge import FractalKnowledgeGraph
 
 class FractalNode:
     def __init__(
@@ -11,6 +12,7 @@ class FractalNode:
         context: str = "",
         llm: Optional[LLMInterface] = None,
         memory: Optional[FractalMemory] = None,
+        knowledge: Optional[FractalKnowledgeGraph] = None,
         depth: int = 0,
         max_depth: int = 3,
         task_type: str = "general" # general, reasoning, vision, speculative
@@ -29,6 +31,7 @@ class FractalNode:
 
         self.llm = llm or MockLLM()
         self.memory = memory or FractalMemory()
+        self.knowledge = knowledge
 
         self._persist()
 
@@ -51,6 +54,15 @@ class FractalNode:
 
     def run(self) -> str:
         print(f"[{'  ' * self.depth}] Node {self.id[:4]} ({self.task_type}) processing: {self.goal}")
+        
+        # 1. Hierarchical Retrieval (Zoomable Knowledge)
+        retrieved_knowledge = ""
+        if self.knowledge:
+            print(f"[{'  ' * self.depth}] -> Querying Fractal Knowledge Graph...")
+            retrieved_knowledge = self.knowledge.query(self.goal)
+            if retrieved_knowledge:
+                self.context += f"\n\nRelevant Knowledge:\n{retrieved_knowledge}"
+
         self.status = "IN_PROGRESS"
         self._persist()
 
@@ -82,6 +94,7 @@ class FractalNode:
                     context=child_context,
                     llm=self.llm,
                     memory=self.memory,
+                    knowledge=self.knowledge,
                     depth=self.depth + 1,
                     max_depth=self.max_depth,
                     task_type=child_type

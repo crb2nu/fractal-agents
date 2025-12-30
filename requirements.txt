@@ -5,3 +5,5 @@ pydantic
 openai
 tiktoken
 python-dotenv
+qdrant-client
+weaviate-client
