@@ -84,9 +84,10 @@ metadata:
   name: fractal-visualizer
   namespace: ai
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
+  ingressClassName: nginx
   tls:
   - hosts:
     - fractal.flexinfer.ai
