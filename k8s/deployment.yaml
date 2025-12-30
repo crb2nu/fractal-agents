@@ -18,15 +18,33 @@ spec:
       labels:
         app: fractal-agents
     spec:
+      initContainers:
+      - name: clone
+        image: alpine/git
+        command:
+        - sh
+        - -c
+        - |
+          git clone http://oauth2:$(GIT_PASSWORD)@gitlab.gitlab.svc.cluster.local:8080/libs/fractal-agents.git /app
+        env:
+        - name: GIT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gitops-gitlab
+              key: password
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
       containers:
       - name: core
         image: python:3.9-slim
+        workingDir: /app
         command: 
         - "/bin/sh"
         - "-c"
         - |
           pip install -r requirements.txt
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+          export PYTHONPATH=$PYTHONPATH:/app/src
           python src/fractal_agents/server.py
         env:
         - name: PYTHONUNBUFFERED
@@ -48,7 +66,13 @@ spec:
           value: "redis://:$(REDIS_PASSWORD)@langgraph-redis-master.ai.svc.cluster.local:6379/0"
         ports:
         - containerPort: 8000
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
         resources:
           limits:
             memory: "1Gi"
             cpu: "1000m"
+      volumes:
+      - name: app-code
+        emptyDir: {}
