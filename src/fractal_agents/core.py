@@ -37,6 +37,11 @@ class FractalNode:
         self._persist()
 
     def _persist(self):
+        # VRAM Estimation logic
+        vram_points = 0
+        if self.status == "IN_PROGRESS":
+            vram_points = 100 if self.task_type == "reasoning" else 30
+        
         state = {
             "id": self.id,
             "goal": self.goal,
@@ -46,7 +51,8 @@ class FractalNode:
             "result": self.result,
             "summary": self.summary,
             "depth": self.depth,
-            "task_type": self.task_type
+            "task_type": self.task_type,
+            "vram_points": vram_points
         }
         self.memory.save_node_state(self.id, state)
 

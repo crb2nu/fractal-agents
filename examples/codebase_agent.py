@@ -48,7 +48,7 @@ class CodebaseAgent:
         
         # Start Fractal Process with KG enabled
         root = FractalNode(
-            goal=f"Implement feature: {requirement} in project {self.project_path}",
+            goal=f"Implement feature: {requirement} in project {self.project_path}. Return the final code changes in a JSON format: {{'files': [{{'path': str, 'content': str}}]}}",
             llm=self.llm,
             memory=self.memory,
             knowledge=self.kg,
@@ -58,7 +58,36 @@ class CodebaseAgent:
         
         result = await root.run()
         print("\n--- Final Implementation Plan ---")
-        print(result)
+        
+        # 3. APPLY CHANGES Phase
+        await self.apply_changes(result)
+
+    async def apply_changes(self, result_text: str):
+        print("Applying changes to codebase...")
+        try:
+            # Extract JSON from the synthesis result
+            start = result_text.find("{")
+            end = result_text.rfind("}") + 1
+            data = json.loads(result_text[start:end])
+            
+            for file_change in data.get("files", []):
+                path = file_change["path"]
+                content = file_change["content"]
+                
+                # Safety: Ensure path is within project
+                full_path = os.path.abspath(path)
+                if not full_path.startswith(os.path.abspath(self.project_path)):
+                    print(f"Skipping unsafe path: {path}")
+                    continue
+                
+                print(f"Writing file: {path}")
+                with open(full_path, "w") as f:
+                    f.write(content)
+            
+            print("Successfully updated codebase.")
+        except Exception as e:
+            print(f"Failed to apply changes: {e}")
+            print("Raw Result was:", result_text[:200], "...")
 
 async def main():
     agent = CodebaseAgent(".")

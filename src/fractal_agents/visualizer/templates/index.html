@@ -23,6 +23,12 @@
         .status-SPLIT { fill: #2196f3 !important; stroke: #1565c0; }
         .status-PENDING { fill: #333 !important; stroke: #444; }
 
+        /* VRAM Meter */
+        #vram-meter { position: absolute; bottom: 20px; left: 15px; right: 15px; }
+        #vram-bar-bg { width: 100%; height: 8px; background: #1a1a1f; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+        #vram-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #2196f3, #ff9800, #f44336); transition: width 0.5s ease; }
+        #vram-value { font-size: 10px; color: #666; margin-top: 5px; text-align: right; }
+
         /* Animation */
         @keyframes pulse {
             0% { r: 10; opacity: 1; }
@@ -45,6 +51,11 @@
         <div id="sunburst-container" class="chart-container">
             <div class="label">Recursive Depth (Sunburst)</div>
             <svg id="sunburst-svg"></svg>
+            <div id="vram-meter">
+                <div class="label" style="position:relative; top:0; left:0;">Cluster VRAM Pressure</div>
+                <div id="vram-bar-bg"><div id="vram-bar-fill"></div></div>
+                <div id="vram-value">0%</div>
+            </div>
         </div>
     </div>
 
@@ -78,6 +89,15 @@
             if (!data) return;
             drawTree(data);
             drawSunburst(data);
+            updateVRAM();
+        }
+
+        function updateVRAM() {
+            const totalVRAM = rawNodes.reduce((acc, n) => acc + (n.vram_points || 0), 0);
+            // Assume 1000 points is "Cluster Saturation"
+            const percentage = Math.min(100, (totalVRAM / 1000) * 100);
+            d3.select("#vram-bar-fill").style("width", percentage + "%");
+            d3.select("#vram-value").text(`${Math.round(percentage)}% Load`);
         }
 
         // --- Mandelbrot Tree Logic ---
