@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+src/fractal_agents/__pycache__/
+src/fractal_agents/__pycache__/*.pyc
+.env

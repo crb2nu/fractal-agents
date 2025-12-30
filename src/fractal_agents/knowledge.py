@@ -26,7 +26,9 @@ class QdrantFractalStore(KnowledgeStore):
     def __init__(self, url: str = None, api_key: str = None, collection_name: str = "fractal_knowledge"):
         self.url = url or os.getenv("QDRANT_URL", "http://192.168.50.176:6333")
         self.api_key = api_key or os.getenv("QDRANT_API_KEY")
-        self.client = QdrantClient(url=self.url, api_key=self.api_key)
+        print(f"[DEBUG] Qdrant URL: {self.url}")
+        print(f"[DEBUG] Qdrant API Key present: {bool(self.api_key)}")
+        self.client = QdrantClient(url=self.url, api_key=self.api_key, check_compatibility=False)
         self.collection_name = collection_name
         self._ensure_collection()
 

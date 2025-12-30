@@ -68,6 +68,12 @@ spec:
           value: "http://192.168.50.176:6333"
         - name: WEAVIATE_URL
           value: "http://weaviate.ai.svc.cluster.local:8080"
+        - name: QDRANT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fractal-secrets
+              key: QDRANT_API_KEY
+              optional: true
         ports:
         - containerPort: 8000
         volumeMounts:

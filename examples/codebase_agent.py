@@ -91,11 +91,16 @@ class CodebaseAgent:
 
 async def main():
     agent = CodebaseAgent(".")
-    # 1. Index the fractal-agents codebase itself
+    # 1. Index the fractal-agents codebase
     await agent.index_codebase()
     
-    # 2. Parallel Fractal Reasoning
-    await agent.implement_feature("Add a retry decorator to the LiteLLM class for robust API calls.")
+    # 2. Parallel Fractal Reasoning to generate tests
+    goal = (
+        "Create a comprehensive unit test suite for the FractalNode class in 'tests/test_core.py'. "
+        "The tests should cover initialization, mitosis (splitting), and result synthesis. "
+        "Use pytest. Mock the LLM and Memory components to avoid real API calls during tests."
+    )
+    await agent.implement_feature(goal)
 
 if __name__ == "__main__":
     asyncio.run(main())

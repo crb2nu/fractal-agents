@@ -1,0 +1,55 @@
+stages:
+  - lint
+  - test
+  - build
+  - publish
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  PYTHON_VERSION: "3.12"
+
+.python-base:
+  image: python:${PYTHON_VERSION}
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .pip-cache/
+      - .venv/
+  before_script:
+    - python -m venv .venv
+    - source .venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+
+lint:
+  extends: .python-base
+  stage: lint
+  script:
+    - pip install ruff mypy
+    - ruff check src/
+    - ruff format --check src/
+  allow_failure: true
+
+test:
+  extends: .python-base
+  stage: test
+  services:
+    - redis:7-alpine
+  variables:
+    REDIS_URL: "redis://redis:6379/0"
+  script:
+    - pip install pytest pytest-asyncio
+    - python -m pytest tests/ -v
+  allow_failure: true  # Tests may require external services
+
+build:docker:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA} .
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA} ${CI_REGISTRY_IMAGE}:latest
+  only:
+    - main
+    - tags
