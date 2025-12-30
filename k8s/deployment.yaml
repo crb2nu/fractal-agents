@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fractal-agents-core
-  namespace: fractal-agents
+  namespace: ai
   labels:
     app: fractal-agents
   annotations:
@@ -60,8 +60,8 @@ spec:
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: redis-credentials
-              key: REDIS_PASSWORD
+              name: langgraph-redis-auth
+              key: redis-password
         - name: REDIS_URL
           value: "redis://:$(REDIS_PASSWORD)@langgraph-redis-master.ai.svc.cluster.local:6379/0"
         ports:
