@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from fractal_agents.memory import FractalMemory
+
 
 class TestFractalMemory:
     """Tests for FractalMemory Redis-backed storage."""

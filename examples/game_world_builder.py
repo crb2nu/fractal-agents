@@ -1,30 +1,31 @@
-import os
 import json
-import time
-from typing import List, Dict, Any
+import os
+from typing import Any, Dict
+
 from fractal_agents.core import FractalNode
 from fractal_agents.llm_interface import LiteLLM
 from fractal_agents.memory import FractalMemory
+
 
 class WorldBuilderAgent:
     def __init__(self, root_goal: str):
         self.root_goal = root_goal
         self.memory = FractalMemory()
         self.llm = LiteLLM()
-        
+
         # Output paths
         self.base_dir = "../game/game/data"
         self.storylet_dir = os.path.join(self.base_dir, "storylets/fractal_gen")
         self.npc_dir = os.path.join(self.base_dir, "npcs/fractal_gen")
         self.tile_dir = os.path.join(self.base_dir, "tiles/fractal_gen")
-        
+
         for d in [self.storylet_dir, self.npc_dir, self.tile_dir]:
             os.makedirs(d, exist_ok=True)
 
     def run(self):
         print(f"--- Starting Advanced Fractal World Building: {self.root_goal} ---")
-        
-        # Structure: 
+
+        # Structure:
         # Depth 0: World Concept
         # Depth 1: Regions & Key Landmarks
         # Depth 2: Local Elements (NPCs, Map Tiles, Storylets)
@@ -32,22 +33,23 @@ class WorldBuilderAgent:
             goal=f"Decompose this world-building vision into specific regions, landmarks, NPCs, and map tiles: {self.root_goal}",
             llm=self.llm,
             memory=self.memory,
-            max_depth=2, 
-            task_type="reasoning"
+            max_depth=2,
+            task_type="reasoning",
         )
-        
+
         root.run()
-        
+
         print("\n--- Synthesis Phase: Categorizing and Exporting ---")
         self.export_recursive(root.id)
 
     def export_recursive(self, node_id: str):
         state = self.memory.get_node_state(node_id)
-        if not state: return
+        if not state:
+            return
 
-        depth = state['depth']
-        content = state['result']
-        goal = state['goal'].lower()
+        depth = state["depth"]
+        # content = state['result']
+        goal = state["goal"].lower()
 
         # Route leaf nodes to specific exporters based on content hints
         if depth == 2:
@@ -57,8 +59,8 @@ class WorldBuilderAgent:
                 self.save_as_tile(state)
             else:
                 self.save_as_storylet(state)
-        
-        for child_id in state['children_ids']:
+
+        for child_id in state["children_ids"]:
             self.export_recursive(child_id)
 
     def save_as_npc(self, state: Dict[str, Any]):
@@ -97,6 +99,9 @@ class WorldBuilderAgent:
         except Exception as e:
             print(f"Error parsing JSON for {filename}: {e}")
 
+
 if __name__ == "__main__":
-    builder = WorldBuilderAgent("A clockwork city built on top of a giant, dying whale in a sea of mercury.")
+    builder = WorldBuilderAgent(
+        "A clockwork city built on top of a giant, dying whale in a sea of mercury."
+    )
     builder.run()

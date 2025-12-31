@@ -1,13 +1,16 @@
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
-import os
 import json
-import asyncio
+import os
+from abc import ABC, abstractmethod
+from typing import List
+
 from openai import AsyncOpenAI
+
 
 class LLMInterface(ABC):
     @abstractmethod
-    async def generate_response(self, prompt: str, context: str = "", model_hint: str = "general") -> str:
+    async def generate_response(
+        self, prompt: str, context: str = "", model_hint: str = "general"
+    ) -> str:
         pass
 
     @abstractmethod
@@ -18,26 +21,31 @@ class LLMInterface(ABC):
     async def summarize(self, text: str) -> str:
         pass
 
+
 class LiteLLM(LLMInterface):
     def __init__(self, api_base: str = None, api_key: str = None):
-        self.api_base = api_base or os.getenv("LITELLM_API_BASE", "http://litellm.ai.svc.cluster.local:8000/v1")
+        self.api_base = api_base or os.getenv(
+            "LITELLM_API_BASE", "http://litellm.ai.svc.cluster.local:8000/v1"
+        )
         self.api_key = api_key or os.getenv("LITELLM_API_KEY", "sk-litellm-local")
         # Use Async Client for parallelism
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.api_base)
-        
+
         self.model_map = {
             "general": "qwen2.5-7b",
             "reasoning": "reasoning",
             "vision": "vision",
-            "speculative": "qwen2.5-7b", # Speculative alias
+            "speculative": "qwen2.5-7b",  # Speculative alias
             "fast": "qwen2.5-7b",
-            "summary": "qwen2.5-7b"
+            "summary": "qwen2.5-7b",
         }
 
     def _get_model(self, hint: str) -> str:
         return self.model_map.get(hint, self.model_map["general"])
 
-    async def generate_response(self, prompt: str, context: str = "", model_hint: str = "general") -> str:
+    async def generate_response(
+        self, prompt: str, context: str = "", model_hint: str = "general"
+    ) -> str:
         model = self._get_model(model_hint)
         system_prompt = "You are a helpful recursive agent node."
         if model_hint == "reasoning":
@@ -47,56 +55,62 @@ class LiteLLM(LLMInterface):
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Context: {context}\n\nTask: {prompt}"}
+                {"role": "user", "content": f"Context: {context}\n\nTask: {prompt}"},
             ],
-            temperature=0.7
+            temperature=0.7,
         )
         return response.choices[0].message.content.strip()
 
     async def speculative_solve(self, prompt: str, context: str = "") -> str:
         """
-        Intelligent Speculative Decode: 
+        Intelligent Speculative Decode:
         1. Draft with 'speculative' model (Fast).
         2. Review with 'reasoning' model (Slow/Deep) ONLY if complexity is high.
         """
         # Step 1: Rapid Draft
         draft = await self.generate_response(prompt, context, model_hint="speculative")
-        
+
         # Step 2: Complexity Check (Is the draft sufficient?)
         # For simplicity, we assume if it's < 100 chars, it might need more thought.
         if len(draft) < 100:
-            return await self.generate_response(f"Refine this draft: {draft}", context, model_hint="reasoning")
-        
+            return await self.generate_response(
+                f"Refine this draft: {draft}", context, model_hint="reasoning"
+            )
+
         return draft
 
     async def generate_subgoals(self, goal: str, num_subgoals: int = 3) -> List[str]:
         model = self._get_model("reasoning")
         prompt = (
-            f"Break down the following complex goal into {num_subgoals} distinct, sequential sub-goals. "
+            f"Break down the following complex goal into {num_subgoals} "
+            f"distinct, sequential sub-goals. "
             f"Return ONLY a JSON list of strings.\n\nGoal: {goal}"
         )
         response = await self.client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
         )
         content = response.choices[0].message.content.strip()
         try:
             data = json.loads(content)
             return data if isinstance(data, list) else list(data.values())[0]
-        except:
-            return [line.strip("- *") for line in content.split("\n") if line.strip()][:num_subgoals]
+        except Exception:
+            # Fallback to line parsing
+            return [line.strip("- *") for line in content.split("\n") if line.strip()][
+                :num_subgoals
+            ]
 
     async def summarize(self, text: str) -> str:
         model = self._get_model("summary")
         response = await self.client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "Summarize efficiently."}, 
-                {"role": "user", "content": text}
+                {"role": "system", "content": "Summarize efficiently."},
+                {"role": "user", "content": text},
             ],
             temperature=0.3,
-            max_tokens=150
+            max_tokens=150,
         )
         return response.choices[0].message.content.strip()

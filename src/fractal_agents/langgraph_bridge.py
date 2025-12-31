@@ -1,9 +1,12 @@
-from typing import Dict, Any, Annotated
+from typing import Any, Dict
+
+from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
-from langgraph.graph import StateGraph, END
+
 from fractal_agents.core import FractalNode
 from fractal_agents.llm_interface import LiteLLM
 from fractal_agents.memory import FractalMemory
+
 
 class AgentState(TypedDict):
     input: str

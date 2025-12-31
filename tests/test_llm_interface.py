@@ -1,9 +1,14 @@
 """Tests for the LLMInterface and LiteLLM classes."""
 
-from typing import Any
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+from fractal_agents.llm_interface import LiteLLM
+
+if TYPE_CHECKING:
+    from fractal_agents.llm_interface import LiteLLM
 
 
 class TestLLMInterface:
@@ -11,8 +16,9 @@ class TestLLMInterface:
 
     def test_interface_defines_required_methods(self) -> None:
         """Test that interface defines all required abstract methods."""
-        from fractal_agents.llm_interface import LLMInterface
         import inspect
+
+        from fractal_agents.llm_interface import LLMInterface
 
         methods = [
             "generate_response",
@@ -23,9 +29,7 @@ class TestLLMInterface:
         for method_name in methods:
             assert hasattr(LLMInterface, method_name)
             method = getattr(LLMInterface, method_name)
-            assert inspect.iscoroutinefunction(method) or hasattr(
-                method, "__isabstractmethod__"
-            )
+            assert inspect.iscoroutinefunction(method) or hasattr(method, "__isabstractmethod__")
 
 
 class TestLiteLLM:
@@ -78,9 +82,7 @@ class TestLiteLLM:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = "Generated response"
-        mock_openai_client.chat.completions.create = AsyncMock(
-            return_value=mock_response
-        )
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         result = await litellm.generate_response(
             prompt="Test prompt", context="Test context", model_hint="general"
@@ -97,9 +99,7 @@ class TestLiteLLM:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = '["Goal 1", "Goal 2", "Goal 3"]'
-        mock_openai_client.chat.completions.create = AsyncMock(
-            return_value=mock_response
-        )
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         result = await litellm.generate_subgoals("Complex goal")
 
@@ -113,9 +113,7 @@ class TestLiteLLM:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = '{"subgoals": ["A", "B", "C"]}'
-        mock_openai_client.chat.completions.create = AsyncMock(
-            return_value=mock_response
-        )
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         result = await litellm.generate_subgoals("Complex goal")
 
@@ -128,12 +126,8 @@ class TestLiteLLM:
         """Test subgoal generation falls back to line parsing."""
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
-        mock_response.choices[
-            0
-        ].message.content = "- First goal\n- Second goal\n- Third goal"
-        mock_openai_client.chat.completions.create = AsyncMock(
-            return_value=mock_response
-        )
+        mock_response.choices[0].message.content = "- First goal\n- Second goal\n- Third goal"
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         result = await litellm.generate_subgoals("Complex goal")
 
@@ -141,16 +135,12 @@ class TestLiteLLM:
         assert "First goal" in result[0]
 
     @pytest.mark.asyncio
-    async def test_summarize(
-        self, litellm: "LiteLLM", mock_openai_client: MagicMock
-    ) -> None:
+    async def test_summarize(self, litellm: "LiteLLM", mock_openai_client: MagicMock) -> None:
         """Test text summarization."""
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = "Brief summary"
-        mock_openai_client.chat.completions.create = AsyncMock(
-            return_value=mock_response
-        )
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         result = await litellm.summarize("Long text to summarize...")
 
@@ -166,11 +156,7 @@ class TestLiteLLM:
         responses = [
             MagicMock(choices=[MagicMock(message=MagicMock(content="Short"))]),
             MagicMock(
-                choices=[
-                    MagicMock(
-                        message=MagicMock(content="Refined and expanded response")
-                    )
-                ]
+                choices=[MagicMock(message=MagicMock(content="Refined and expanded response"))]
             ),
         ]
         mock_openai_client.chat.completions.create = AsyncMock(side_effect=responses)
@@ -189,9 +175,7 @@ class TestLiteLLM:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = long_response
-        mock_openai_client.chat.completions.create = AsyncMock(
-            return_value=mock_response
-        )
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         result = await litellm.speculative_solve("Simple prompt")
 

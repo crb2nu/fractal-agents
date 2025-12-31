@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 import lz4.frame
 import redis

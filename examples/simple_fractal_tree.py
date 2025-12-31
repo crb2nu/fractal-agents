@@ -1,8 +1,10 @@
 import os
+import time
+
 from fractal_agents.core import FractalNode
 from fractal_agents.llm_interface import MockLLM, OpenAILLM
 from fractal_agents.memory import FractalMemory
-import time
+
 
 def main():
     print("Initializing Fractal Agents System...")

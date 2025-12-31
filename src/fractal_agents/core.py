@@ -1,9 +1,10 @@
-import uuid
 import asyncio
+import uuid
 from typing import List, Optional
-from .llm_interface import LLMInterface, LiteLLM
-from .memory import FractalMemory
+
 from .knowledge import FractalKnowledgeGraph
+from .llm_interface import LiteLLM, LLMInterface
+from .memory import FractalMemory
 
 
 class FractalNode:

@@ -49,3 +49,5 @@ htmlcov/
 Thumbs.db
 .env
 .envrc
+report.md
+assets/

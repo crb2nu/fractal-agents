@@ -1,12 +1,15 @@
-import os
 import logging
+import os
+import time
+from typing import Dict, List, Optional
+
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union
+from pydantic import BaseModel
+
 from fractal_agents.core import FractalNode
-from fractal_agents.memory import FractalMemory
-from fractal_agents.llm_interface import LiteLLM
 from fractal_agents.knowledge import FractalKnowledgeGraph, QdrantFractalStore
+from fractal_agents.llm_interface import LiteLLM
+from fractal_agents.memory import FractalMemory
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -35,9 +38,11 @@ except Exception as e:
 
 # --- OpenAI Compatible Schemas ---
 
+
 class Message(BaseModel):
     role: str
     content: str
+
 
 class ChatCompletionRequest(BaseModel):
     model: str
@@ -46,10 +51,12 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: Optional[int] = None
     stream: Optional[bool] = False
 
+
 class ChatCompletionResponseChoice(BaseModel):
     index: int
     message: Message
     finish_reason: str
+
 
 class ChatCompletionResponse(BaseModel):
     id: str
@@ -59,11 +66,14 @@ class ChatCompletionResponse(BaseModel):
     choices: List[ChatCompletionResponseChoice]
     usage: Dict[str, int]
 
+
 # --- Endpoints ---
+
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(request: ChatCompletionRequest):
@@ -72,7 +82,7 @@ async def chat_completions(request: ChatCompletionRequest):
     It treats the last user message as the 'Goal' for a new Fractal Tree.
     """
     logger.info(f"Received request for model: {request.model}")
-    
+
     if not request.messages:
         raise HTTPException(status_code=400, detail="No messages provided")
 
@@ -84,13 +94,15 @@ async def chat_completions(request: ChatCompletionRequest):
             if msg.role == "user":
                 last_message = msg
                 break
-    
+
     goal = last_message.content
     context = ""
-    
+
     # Optional: Compile previous messages into 'Context'
     if len(request.messages) > 1:
-        context = "Conversation History:\n" + "\n".join([f"{m.role}: {m.content}" for m in request.messages[:-1]])
+        context = "Conversation History:\n" + "\n".join(
+            [f"{m.role}: {m.content}" for m in request.messages[:-1]]
+        )
 
     logger.info(f"Starting Fractal Task: {goal[:100]}...")
 
@@ -101,8 +113,8 @@ async def chat_completions(request: ChatCompletionRequest):
         llm=llm,
         memory=memory,
         knowledge=knowledge_graph,
-        max_depth=2, # Keep depth shallow for synchronous response
-        task_type="general" 
+        max_depth=2,  # Keep depth shallow for synchronous response
+        task_type="general",
     )
 
     try:
@@ -110,25 +122,28 @@ async def chat_completions(request: ChatCompletionRequest):
         result = root.run()
     except Exception as e:
         logger.error(f"Fractal Agent Error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     # Construct OpenAI Response
     return ChatCompletionResponse(
         id=root.id,
-        created=int(os.time.time() if hasattr(os, 'time') else 0), # python < 3.8 compat or just use time module
+        created=int(time.time()),
         model=request.model,
         choices=[
             ChatCompletionResponseChoice(
-                index=0,
-                message=Message(role="assistant", content=result),
-                finish_reason="stop"
+                index=0, message=Message(role="assistant", content=result), finish_reason="stop"
             )
         ],
-        usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0} # Usage tracking TODO
+        usage={
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        },  # Usage tracking TODO
     )
+
 
 if __name__ == "__main__":
     import uvicorn
-    import time
+
     # Quick fix for the time call above if needed, but imported inside main
     uvicorn.run(app, host="0.0.0.0", port=8000)
