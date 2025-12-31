@@ -8,20 +8,25 @@ Traditional multi-agent systems often rely on rigid hierarchies (Manager -> Work
 
 1.  **Self-Similarity:** Every node behaves identically. It receives a goal and context.
 2.  **Mitosis (Fractal Split):** If a task is too complex, the node splits the task into sub-goals and spawns child nodes.
-3.  **Context Zooming:** Only the *active branch* of the recursion tree is loaded into the LLM's immediate context window. Sibling and parent states are compressed and stored in Redis ("Frozen Memory"), allowing for effectively infinite context depth.
+3.  **Context Zooming:** Only the _active branch_ of the recursion tree is loaded into the LLM's immediate context window. Sibling and parent states are compressed and stored in Redis ("Frozen Memory"), allowing for effectively infinite context depth.
 
 ## Architecture
 
 ### The FractalNode
+
 The fundamental unit.
-*   **Input:** Goal, Parent Context (Compressed).
-*   **State:** Pending, Active, Split, or Completed.
-*   **Action:** It either solves the task (if simple) or decomposes it (if complex).
+
+- **Input:** Goal, Parent Context (Compressed).
+- **State:** Pending, Active, Split, or Completed.
+- **Action:** It either solves the task (if simple) or decomposes it (if complex).
 
 ### Frozen Memory (Redis)
+
 We utilize Redis to store the state of the fractal tree.
-*   **Active Memory:** The current executing node's VRAM context.
-*   **Frozen Memory:** Serialized state of all other nodes in Redis Hashes.
+
+- **Active Memory:** The current executing node's VRAM context.
+- **Frozen Memory:** Serialized state of all other nodes in Redis Hashes.
+  - _New:_ State is automatically compressed with **LZ4** to minimize Redis memory footprint.
 
 ## Installation
 
