@@ -7,3 +7,4 @@ tiktoken
 python-dotenv
 qdrant-client
 weaviate-client
+lz4
