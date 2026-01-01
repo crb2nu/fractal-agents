@@ -1,5 +1,10 @@
 # Fractal Agents
 
+![Header](assets/header.svg)
+
+[![pipeline status](https://gitlab.flexinfer.ai/libs/fractal-agents/badges/main/pipeline.svg)](https://gitlab.flexinfer.ai/libs/fractal-agents/-/commits/main)
+[![coverage report](https://gitlab.flexinfer.ai/libs/fractal-agents/badges/main/coverage.svg)](https://gitlab.flexinfer.ai/libs/fractal-agents/-/commits/main)
+
 **Fractal Agents** is a recursive, self-similar agentic framework designed to optimize complex task execution and context management, specifically tailored for constrained hardware (e.g., local Consumer GPUs) and massive-scale workflows.
 
 ## Core Philosophy
