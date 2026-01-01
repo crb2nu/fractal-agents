@@ -15,7 +15,7 @@ To provide a recursive, self-similar agentic framework ("Fractal Nodes") that en
 
 ### Core Stability & Resilience
 
-- [ ] **Recursive Engine**: Hardening the execution engine with proper error boundaries, timeouts, and infinite loop detection.
+- [x] **Recursive Engine**: Hardening the execution engine with proper error boundaries, timeouts, and infinite loop detection.
 - [ ] **State Compression**: Implement LZ4 compression for "Frozen Memory" to minimize Redis footprint during deep recursion.
 - [ ] **Context Summarization**: Automatic summarization of parent contexts using cheaper models before passing to child nodes.
 
