@@ -1,18 +1,41 @@
-# Fractal Agents Roadmap
+# Roadmap: fractal-agents
 
-## Quarter 1 2026: Core Stability & Memory
+## Vision
 
-- [ ] **Recursive Execution Engine**: Finalize the `FractalNode` implementation with proper error boundaries and timeouts.
-- [ ] **Redis "Frozen Memory"**: Implement efficient serialization/deserialization of node contexts to/from Redis (lz4 compression).
-- [ ] **Context Summarization**: Integrate `litellm` to auto-summarize parent contexts before passing them to child nodes.
+To provide a recursive, self-similar agentic framework ("Fractal Nodes") that enables infinite context depth and self-optimizing task execution on constrained hardware through intelligent state compression and distributed memory.
 
-## Quarter 2 2026: Tooling & Observation
+## Current Status
 
-- [ ] **Real-time Visualization**: Export tree state events to `py-observability` for real-time visualization in `flexdeck`.
-- [ ] **Human-in-the-Loop Mode**: Allow an agent to pause and request user approval/clarification via a dedicated "Interrupt" signal.
-- [ ] **Standard Tool Registry**: Integrate with `fi-mcp-kit` to allow agents to discover and bind Model Context Protocol tools dynamically.
+- **Core**: `FractalNode` implementation with basic recursion.
+- **Memory**: Redis-backed "Frozen Memory" for inactive branches.
+- **Integration**: `LangGraph` bridge for workflow orchestration.
+- **LLM**: LiteLLM integration for model-agnostic inference.
 
-## Future / Backlog
+## Immediate Priorities (Q1 2026)
 
-- [ ] **Multi-GPU Parallelism**: Distribute sibling nodes across different GPU workers.
-- [ ] **Self-modifying Code**: Allow agents to write and execute throwaway Python scripts for calculation-heavy subtasks.
+### Core Stability & Resilience
+
+- [ ] **Recursive Engine**: Hardening the execution engine with proper error boundaries, timeouts, and infinite loop detection.
+- [ ] **State Compression**: Implement LZ4 compression for "Frozen Memory" to minimize Redis footprint during deep recursion.
+- [ ] **Context Summarization**: Automatic summarization of parent contexts using cheaper models before passing to child nodes.
+
+### Observability
+
+- [ ] **Real-time Visualization**: Export tree state events to `py-observability` to visualize the fractal tree growth in real-time.
+
+## Future Milestones (Q2 2026+)
+
+### Advanced Tooling
+
+- [ ] **MCP Integration**: Native support for `fi-mcp-kit` to allow agents to dynamically discover and bind tools.
+- [ ] **Human-in-the-Loop**: "Interrupt" signals to pause execution and request user feedback.
+
+### Scale
+
+- [ ] **Multi-GPU/Node**: Distribute sibling nodes across different GPU workers or Kubernetes pods.
+- [ ] **Self-Modification**: Safe sandboxed environment for agents to write and execute ephemeral Python scripts.
+
+## Maintenance
+
+- [ ] Update `langgraph` and `litellm` dependencies.
+- [ ] Refine `pydantic` models for state serialization.

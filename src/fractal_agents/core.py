@@ -19,6 +19,7 @@ class FractalNode:
         depth: int = 0,
         max_depth: int = 3,
         task_type: str = "general",
+        timeout: int = 300,  # Default 5 minutes for recursion chain
     ):
         self.id = str(uuid.uuid4())
         self.goal = goal
@@ -31,6 +32,7 @@ class FractalNode:
         self.depth = depth
         self.max_depth = max_depth
         self.task_type = task_type
+        self.timeout = timeout
 
         self.llm = llm or LiteLLM()
         self.memory = memory or FractalMemory()
@@ -62,6 +64,16 @@ class FractalNode:
         return self.depth < self.max_depth
 
     async def run(self) -> str:
+        try:
+            return await asyncio.wait_for(self._execute(), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            self.status = "FAILED"
+            self.result = f"Execution timed out after {self.timeout}s"
+            self._persist()
+            print(f"[{'  ' * self.depth}] Node {self.id[:4]} TIMEOUT")
+            return self.result
+
+    async def _execute(self) -> str:
         self.status = "IN_PROGRESS"
         self._persist()
         print(f"[{'  ' * self.depth}] Node {self.id[:4]} ({self.task_type}) START")
@@ -76,19 +88,25 @@ class FractalNode:
             self.status = "SPLIT"
             subgoals = await self.llm.generate_subgoals(self.goal)
 
-            # --- PARALLEL EXECUTION ---
+            # Summarize parent context for children if it's too long
+            summarized_context = self.context
+            if len(self.context) > 1000:
+                print(f"[{'  ' * self.depth}] Compressing context for children...")
+                summarized_context = await self.llm.summarize(self.context)
+
             # Create child nodes
             children = []
             for sg in subgoals:
                 child = FractalNode(
                     goal=sg,
                     parent_id=self.id,
-                    context=f"Intent: {self.goal}",
+                    context=f"Intent: {self.goal}\nContext Snippet: {summarized_context}",
                     llm=self.llm,
                     memory=self.memory,
                     knowledge=self.knowledge,
                     depth=self.depth + 1,
                     max_depth=self.max_depth,
+                    timeout=max(10, self.timeout - 10),  # Adjust child timeout
                 )
                 self.children_ids.append(child.id)
                 children.append(child)
