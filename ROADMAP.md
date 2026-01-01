@@ -22,7 +22,7 @@ To provide a recursive, self-similar agentic framework ("Fractal Nodes") that en
 ### Advanced Patterns (Q2 2026)
 
 - [ ] **Multi-Agent Handoffs**: Implement explicit handoff protocols between specialized agents (e.g., 'Researcher' -> 'Coder') using LangGraph-style state transitions.
-- [ ] **Explicit State Reducers**: Define strict TypedDict schemas for node state and use reducer functions to manage state updates, preventing race conditions in parallel branches.
+- [x] **Explicit State Reducers**: Define strict TypedDict schemas for node state and use reducer functions to manage state updates, preventing race conditions in parallel branches.
 
 ### Observability
 

@@ -6,6 +6,7 @@ from typing import List, Optional
 from .knowledge import FractalKnowledgeGraph
 from .llm_interface import LiteLLM, LLMInterface
 from .memory import FractalMemory
+from .state import NodeState, reduce_node_state
 
 # Global safety limit to prevent infinite recursion bugs
 GLOBAL_MAX_DEPTH = 50
@@ -30,10 +31,21 @@ class FractalNode:
         self.goal = goal
         self.parent_id = parent_id
         self.context = context
-        self.children_ids: List[str] = []
-        self.status = "PENDING"
-        self.result = ""
-        self.summary = ""
+        
+        # Initialize State using TypedDict
+        self.state: NodeState = {
+            "id": self.id,
+            "goal": self.goal,
+            "parent_id": self.parent_id,
+            "children_ids": [],
+            "status": "PENDING",
+            "result": "",
+            "summary": "",
+            "depth": depth,
+            "task_type": task_type,
+            "vram_points": 0
+        }
+        
         self.depth = depth
         self.max_depth = min(max_depth, GLOBAL_MAX_DEPTH)
         self.task_type = task_type
@@ -45,26 +57,22 @@ class FractalNode:
 
         self._persist()
 
-    def _persist(self):
-        # VRAM Estimation logic
-        vram_points = 0
-        if self.status == "IN_PROGRESS":
-            vram_points = 100 if self.task_type == "reasoning" else 30
+    def _dispatch(self, action_type: str, payload: dict = None):
+        """Apply a state change via the reducer."""
+        if payload is None:
+            payload = {}
+        self.state = reduce_node_state(self.state, {"type": action_type, "payload": payload})
+        self._persist()
 
-        state = {
-            "id": self.id,
-            "goal": self.goal,
-            "parent_id": self.parent_id,
-            "children_ids": self.children_ids,
-            "status": self.status,
-            "result": self.result,
-            "summary": self.summary,
-            "depth": self.depth,
-            "task_type": self.task_type,
-            "vram_points": vram_points,
-        }
+    def _persist(self):
+        # VRAM Estimation logic (computed during persist or reducer? Reducer is purer)
+        # We'll update VRAM points based on status in reducer or here.
+        # Ideally, it should be in the reducer, but for now we keep simple logic.
+        if self.state["status"] == "IN_PROGRESS":
+            self.state["vram_points"] = 100 if self.task_type == "reasoning" else 30
+        
         try:
-            self.memory.save_node_state(self.id, state)
+            self.memory.save_node_state(self.id, self.state)
         except Exception as e:
             logger.error(f"Failed to persist node {self.id}: {e}")
 
@@ -75,27 +83,20 @@ class FractalNode:
         try:
             return await asyncio.wait_for(self._execute(), timeout=self.timeout)
         except asyncio.TimeoutError:
-            self.status = "FAILED"
-            self.result = f"Execution timed out after {self.timeout}s"
+            self._dispatch("FAIL", {"error": f"Execution timed out after {self.timeout}s"})
             logger.warning(f"[{'  ' * self.depth}] Node {self.id[:4]} TIMEOUT")
-            self._persist()
-            return self.result
+            return self.state["result"]
         except asyncio.CancelledError:
-            self.status = "CANCELLED"
-            self.result = "Execution cancelled"
+            self._dispatch("CANCEL")
             logger.warning(f"[{'  ' * self.depth}] Node {self.id[:4]} CANCELLED")
-            self._persist()
             raise
         except Exception as e:
-            self.status = "FAILED"
-            self.result = f"Execution failed: {str(e)}"
+            self._dispatch("FAIL", {"error": f"Execution failed: {str(e)}"})
             logger.error(f"[{'  ' * self.depth}] Node {self.id[:4]} ERROR: {e}")
-            self._persist()
-            return self.result
+            return self.state["result"]
 
     async def _execute(self) -> str:
-        self.status = "IN_PROGRESS"
-        self._persist()
+        self._dispatch("START")
         print(f"[{'  ' * self.depth}] Node {self.id[:4]} ({self.task_type}) START")
 
         child_tasks = []
@@ -111,7 +112,7 @@ class FractalNode:
                     logger.warning(f"Knowledge retrieval failed: {e}")
 
             if self.is_complex():
-                self.status = "SPLIT"
+                self._dispatch("SPLIT", {}) # Status update only for now
                 subgoals = await self.llm.generate_subgoals(self.goal)
 
                 # Summarize parent context for children if it's too long
@@ -122,6 +123,7 @@ class FractalNode:
 
                 # Create child nodes
                 children = []
+                children_ids = []
                 for sg in subgoals:
                     child = FractalNode(
                         goal=sg,
@@ -134,10 +136,10 @@ class FractalNode:
                         max_depth=self.max_depth,
                         timeout=max(10, self.timeout - 10),  # Adjust child timeout
                     )
-                    self.children_ids.append(child.id)
+                    children_ids.append(child.id)
                     children.append(child)
 
-                self._persist()
+                self._dispatch("SPLIT", {"children": children_ids})
 
                 # Execute all children concurrently
                 print(f"[{'  ' * self.depth}] -> Mitosis: Spawning {len(children)} children...")
@@ -158,42 +160,41 @@ class FractalNode:
                         valid_results.append(res)
 
                 # 2. Parallel Synthesis
+                final_result = ""
                 if failures:
                     # If some failed, we mention it in the result but try to synthesize what we have
                     print(f"[{'  ' * self.depth}] WARNING: {len(failures)} children failed.")
-                    self.result = (
+                    final_result = (
                         "Synthesized (Partial): "
                         + " | ".join(valid_results)
                         + f" | Failures: {'; '.join(failures)}"
                     )
                 else:
-                    self.result = "Synthesized: " + " | ".join(valid_results)
+                    final_result = "Synthesized: " + " | ".join(valid_results)
 
                 # If no valid results, mark as failed
                 if not valid_results and failures:
-                    self.status = "FAILED"
-                    self.result = f"All subtasks failed: {'; '.join(failures)}"
+                    self._dispatch("FAIL", {"error": f"All subtasks failed: {'; '.join(failures)}"})
                 else:
-                    self.summary = await self.llm.summarize(self.result)
-                    self.status = "COMPLETED"
+                    summary = await self.llm.summarize(final_result)
+                    self._dispatch("COMPLETE", {"result": final_result, "summary": summary})
 
             else:
                 # --- SPECULATIVE SOLVE ---
                 # Leaf nodes use the fast model first
                 print(f"[{'  ' * self.depth}] -> Solving (Speculative)...")
-                self.result = await self.llm.generate_response(
+                result = await self.llm.generate_response(
                     self.goal, self.context, model_hint="speculative"
                 )
-                self.summary = await self.llm.summarize(self.result)
-                self.status = "COMPLETED"
+                summary = await self.llm.summarize(result)
+                self._dispatch("COMPLETE", {"result": result, "summary": summary})
                 try:
-                    self.memory.store_summary(self.id, self.summary)
+                    self.memory.store_summary(self.id, summary)
                 except Exception:
                     pass
 
-            self._persist()
             print(f"[{'  ' * self.depth}] Node {self.id[:4]} DONE.")
-            return self.result
+            return self.state["result"]
 
         except asyncio.CancelledError:
             # Propagate cancellation to children
