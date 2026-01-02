@@ -1,3 +1,4 @@
+![Banner](assets/banner.png)
 # Fractal Agents
 
 ![Header](assets/header.svg)
