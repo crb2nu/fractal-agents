@@ -1,34 +1,28 @@
-stages:
-  - lint
-  - test
-  - build
-  - publish
+# Python CI - Uses shared templates from platform/gitops
+include:
+  - project: 'platform/gitops'
+    file: '/ci/templates/python.yml'
 
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
-  PYTHON_VERSION: "3.12"
+stages: [lint, test, build, publish]
 
+# Override base to use requirements.txt instead of pyproject.toml
 .python-base:
-  image: python:${PYTHON_VERSION}
+  image: python:${PYTHON_VERSION:-3.12}
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
   cache:
-    key: ${CI_COMMIT_REF_SLUG}
+    key: "${CI_COMMIT_REF_SLUG}-python"
     paths:
       - .pip-cache/
       - .venv/
   before_script:
     - python -m venv .venv
     - source .venv/bin/activate
-    - pip install --upgrade pip
+    - pip install --upgrade pip wheel
     - pip install -r requirements.txt
 
 lint:
-  extends: .python-base
-  stage: lint
-  script:
-    - pip install ruff mypy
-    - ruff check src/
-    - ruff format --check src/
-  allow_failure: true
+  extends: .python-lint
 
 test:
   extends: .python-base
