@@ -23,6 +23,7 @@ stages: [lint, test, build, publish]
 
 lint:
   extends: .python-lint
+  image: python:3.12
   allow_failure: false
 
 test:
