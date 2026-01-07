@@ -6,12 +6,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy source code and metadata
 COPY src/ ./src/
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
 
-# Install the package
-RUN pip install --no-cache-dir -e .
+# Install the package (non-editable for production)
+RUN pip install --no-cache-dir .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
