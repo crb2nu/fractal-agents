@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: core
-        image: registry.gitlab.flexinfer.ai/libs/fractal-agents:latest
+        image: registry.harbor.lan/flexinfer/fractal-agents:latest
         imagePullPolicy: Always
         env:
         - name: PYTHONUNBUFFERED

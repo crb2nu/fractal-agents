@@ -39,18 +39,25 @@ test:
 
 build:docker:
   stage: build
-  image: docker:24
-  services:
-    - docker:24-dind
+  image:
+    name: moby/buildkit:latest
+    entrypoint: [""]
   variables:
-    DOCKER_TLS_CERTDIR: ""
+    HARBOR_REGISTRY: registry.harbor.lan/flexinfer
+    IMAGE_NAME: fractal-agents
   before_script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - mkdir -p ~/.docker
+    - echo "{\"auths\":{\"${HARBOR_REGISTRY}\":{\"auth\":\"$(echo -n ${HARBOR_USER}:${HARBOR_PASSWORD} | base64)\"}}}" > ~/.docker/config.json
   script:
-    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA} .
-    - docker tag ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA} ${CI_REGISTRY_IMAGE}:latest
-    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
-    - docker push ${CI_REGISTRY_IMAGE}:latest
+    - |
+      buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 \
+        --local context=. \
+        --local dockerfile=. \
+        --output type=image,name=${HARBOR_REGISTRY}/${IMAGE_NAME}:${CI_COMMIT_SHORT_SHA},push=true \
+        --output type=image,name=${HARBOR_REGISTRY}/${IMAGE_NAME}:latest,push=true \
+        --export-cache type=registry,ref=${HARBOR_REGISTRY}/${IMAGE_NAME}:buildcache \
+        --import-cache type=registry,ref=${HARBOR_REGISTRY}/${IMAGE_NAME}:buildcache
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
@@ -59,10 +66,12 @@ deploy:k3s:
   image: bitnami/kubectl:latest
   variables:
     KUBECONFIG: /tmp/kubeconfig
+    HARBOR_REGISTRY: registry.harbor.lan/flexinfer
+    IMAGE_NAME: fractal-agents
   before_script:
     - echo "$KUBE_CONFIG" | base64 -d > $KUBECONFIG
   script:
-    - kubectl -n ai set image deployment/fractal-agents-core core=${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
+    - kubectl -n ai set image deployment/fractal-agents-core core=${HARBOR_REGISTRY}/${IMAGE_NAME}:${CI_COMMIT_SHORT_SHA}
     - kubectl -n ai rollout status deployment/fractal-agents-core --timeout=120s
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
