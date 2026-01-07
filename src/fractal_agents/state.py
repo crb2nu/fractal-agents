@@ -13,16 +13,17 @@ class NodeState(TypedDict):
     task_type: str
     vram_points: int
 
+
 def reduce_node_state(current: NodeState, action: dict) -> NodeState:
     """
     Pure reducer function for state updates.
-    
+
     Args:
         current: Current state
         action: Dict containing 'type' and 'payload'
     """
     new_state = current.copy()
-    
+
     match action.get("type"):
         case "START":
             new_state["status"] = "IN_PROGRESS"
@@ -40,9 +41,12 @@ def reduce_node_state(current: NodeState, action: dict) -> NodeState:
         case "CANCEL":
             new_state["status"] = "CANCELLED"
             new_state["result"] = "Execution cancelled"
+        case "WAIT_FOR_USER":
+            new_state["status"] = "WAITING_FOR_USER"
+            new_state["result"] = action["payload"].get("reason", "Waiting for user feedback")
         case "UPDATE_CONTEXT":
             # Context is not strictly in NodeState TypedDict above (it was separate in class),
             # but if we move it here:
             pass
-            
+
     return new_state

@@ -216,3 +216,20 @@ class TestFractalNode:
 
         state = mock_memory.nodes[node.id]
         assert state["vram_points"] == 100  # Reasoning task
+
+    def test_wait_for_user_state(self, mock_llm: MockLLMInterface, mock_memory: MockMemory) -> None:
+        """Test the WAITING_FOR_USER status transition."""
+        from fractal_agents.core import FractalNode
+
+        node = FractalNode(
+            goal="Ambiguous task",
+            llm=mock_llm,
+            memory=mock_memory,
+        )
+
+        # Dispatch WAIT_FOR_USER
+        node._dispatch("WAIT_FOR_USER", {"reason": "Need more context"})
+
+        state = mock_memory.nodes[node.id]
+        assert state["status"] == "WAITING_FOR_USER"
+        assert "Need more context" in state["result"]

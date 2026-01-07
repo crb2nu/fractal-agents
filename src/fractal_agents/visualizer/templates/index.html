@@ -1,260 +1,508 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Fractal AI Dashboard - Mandelbrot Mind</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        body { font-family: 'Inter', sans-serif; background: #050507; color: #eee; margin: 0; overflow: hidden; }
-        #charts { display: flex; width: 100vw; height: 100vh; }
-        .chart-container { flex: 1; border-right: 1px solid #1a1a1f; position: relative; }
-        #sunburst-container { flex: 0.4; }
-        .label { position: absolute; top: 15px; left: 15px; font-weight: 700; color: #00d4ff; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; z-index: 10; pointer-events: none;}
-        
-        /* Tree Styling */
-        .node circle { stroke-width: 2px; transition: all 0.3s ease; cursor: pointer; }
-        .node circle:hover { stroke: #fff !important; filter: brightness(1.5); }
-        .node text { font-size: 10px; fill: #888; font-weight: 400; pointer-events: none; }
-        .link { fill: none; stroke: #1a1a1f; stroke-width: 1.5px; }
-        
-        /* Status Colors */
-        .status-COMPLETED { fill: #4caf50 !important; stroke: #2e7d32; }
-        .status-IN_PROGRESS { fill: #ff9800 !important; stroke: #ef6c00; box-shadow: 0 0 10px #ff9800; }
-        .status-SPLIT { fill: #2196f3 !important; stroke: #1565c0; }
-        .status-PENDING { fill: #333 !important; stroke: #444; }
+      body {
+        font-family: "Inter", sans-serif;
+        background: #050507;
+        color: #eee;
+        margin: 0;
+        overflow: hidden;
+      }
+      #charts {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+      }
+      .chart-container {
+        flex: 1;
+        border-right: 1px solid #1a1a1f;
+        position: relative;
+      }
+      #sunburst-container {
+        flex: 0.4;
+      }
+      .label {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        font-weight: 700;
+        color: #00d4ff;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 1px;
+        z-index: 10;
+        pointer-events: none;
+      }
 
-        /* VRAM Meter */
-        #vram-meter { position: absolute; bottom: 20px; left: 15px; right: 15px; }
-        #vram-bar-bg { width: 100%; height: 8px; background: #1a1a1f; border-radius: 4px; overflow: hidden; margin-top: 5px; }
-        #vram-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #2196f3, #ff9800, #f44336); transition: width 0.5s ease; }
-        #vram-value { font-size: 10px; color: #666; margin-top: 5px; text-align: right; }
+      /* Tree Styling */
+      .node circle {
+        stroke-width: 2px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+      .node circle:hover {
+        stroke: #fff !important;
+        filter: brightness(1.5);
+      }
+      .node text {
+        font-size: 10px;
+        fill: #888;
+        font-weight: 400;
+        pointer-events: none;
+      }
+      .link {
+        fill: none;
+        stroke: #1a1a1f;
+        stroke-width: 1.5px;
+      }
 
-        /* Animation */
-        @keyframes pulse {
-            0% { r: 10; opacity: 1; }
-            50% { r: 14; opacity: 0.7; }
-            100% { r: 10; opacity: 1; }
+      /* Status Colors */
+      .status-COMPLETED {
+        fill: #4caf50 !important;
+        stroke: #2e7d32;
+      }
+      .status-IN_PROGRESS {
+        fill: #ff9800 !important;
+        stroke: #ef6c00;
+      }
+      .status-SPLIT {
+        fill: #2196f3 !important;
+        stroke: #1565c0;
+      }
+      .status-PENDING {
+        fill: #333 !important;
+        stroke: #444;
+      }
+      .status-WAITING_FOR_USER {
+        fill: #9c27b0 !important;
+        stroke: #7b1fa2;
+      }
+
+      /* VRAM Meter */
+      #vram-meter {
+        position: absolute;
+        bottom: 20px;
+        left: 15px;
+        right: 15px;
+      }
+      #vram-bar-bg {
+        width: 100%;
+        height: 8px;
+        background: #1a1a1f;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 5px;
+      }
+      #vram-bar-fill {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #2196f3, #ff9800, #f44336);
+        transition: width 0.5s ease;
+      }
+      #vram-value {
+        font-size: 10px;
+        color: #666;
+        margin-top: 5px;
+        text-align: right;
+      }
+
+      /* Details Panel */
+      #details-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 350px;
+        height: 100vh;
+        background: #0a0a0e;
+        border-left: 1px solid #1a1a1f;
+        padding: 20px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        display: none;
+        z-index: 1000;
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+      }
+      #details-panel.active {
+        display: block;
+      }
+      #details-panel h2 {
+        color: #00d4ff;
+        font-size: 14px;
+        margin-top: 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .detail-item {
+        margin-bottom: 20px;
+      }
+      .detail-label {
+        font-size: 10px;
+        color: #666;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+      }
+      .detail-content {
+        font-size: 13px;
+        color: #bbb;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+      #close-panel {
+        cursor: pointer;
+        color: #666;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        font-size: 20px;
+      }
+
+      /* Animation */
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 1;
         }
-        .status-IN_PROGRESS { animation: pulse 2s infinite; }
+        50% {
+          transform: scale(1.2);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .status-IN_PROGRESS {
+        animation: pulse 2s infinite;
+        transform-origin: center;
+      }
 
-        /* Zoom Info */
-        #controls { position: absolute; bottom: 15px; left: 15px; font-size: 10px; color: #444; }
+      @keyframes strobe {
+        0% {
+          filter: brightness(1) drop-shadow(0 0 5px #9c27b0);
+        }
+        50% {
+          filter: brightness(1.5) drop-shadow(0 0 15px #9c27b0);
+        }
+        100% {
+          filter: brightness(1) drop-shadow(0 0 5px #9c27b0);
+        }
+      }
+      .status-WAITING_FOR_USER {
+        animation: strobe 1s infinite;
+      }
+
+      /* Zoom Info */
+      #controls {
+        position: absolute;
+        bottom: 15px;
+        left: 15px;
+        font-size: 10px;
+        color: #444;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div id="charts">
-        <div id="tree-container" class="chart-container">
-            <div class="label">Mandelbrot Mind (Zoom/Pan Canvas)</div>
-            <svg id="tree-svg"></svg>
-            <div id="controls">Wheel to Zoom | Drag to Pan</div>
+      <div id="tree-container" class="chart-container">
+        <div class="label">Mandelbrot Mind (Zoom/Pan Canvas)</div>
+        <svg id="tree-svg"></svg>
+        <div id="controls">
+          Wheel to Zoom | Drag to Pan | Click Node for Details
         </div>
-        <div id="sunburst-container" class="chart-container">
-            <div class="label">Recursive Depth (Sunburst)</div>
-            <svg id="sunburst-svg"></svg>
-            <div id="vram-meter">
-                <div class="label" style="position:relative; top:0; left:0;">Cluster VRAM Pressure</div>
-                <div id="vram-bar-bg"><div id="vram-bar-fill"></div></div>
-                <div id="vram-value">0%</div>
-            </div>
+      </div>
+      <div id="sunburst-container" class="chart-container" style="flex: 0.3">
+        <div class="label">Recursive Depth (Sunburst)</div>
+        <svg id="sunburst-svg"></svg>
+        <div id="vram-meter">
+          <div class="label" style="position: relative; top: 0; left: 0">
+            Cluster VRAM Pressure
+          </div>
+          <div id="vram-bar-bg"><div id="vram-bar-fill"></div></div>
+          <div id="vram-value">0%</div>
         </div>
+      </div>
+    </div>
+
+    <div id="details-panel">
+      <div id="close-panel">&times;</div>
+      <h2 id="detail-title">Node Details</h2>
+      <div class="detail-item">
+        <div class="detail-label">Status</div>
+        <div id="detail-status" class="detail-content">PENDING</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Goal</div>
+        <div id="detail-goal" class="detail-content">-</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Result</div>
+        <div id="detail-result" class="detail-content">-</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">VRAM Usage</div>
+        <div id="detail-vram" class="detail-content">0 pts</div>
+      </div>
     </div>
 
     <script>
-        const ws = new WebSocket(`ws://${window.location.host}/ws`);
-        let rawNodes = [];
-        let svg, g, zoom;
+      const ws = new WebSocket(`ws://${window.location.host}/ws`);
+      let rawNodes = [];
+      let svg, g, zoom;
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (Array.isArray(data)) {
-                rawNodes = data;
-            } else {
-                // Incremental update
-                const index = rawNodes.findIndex(n => n.id === data.id);
-                if (index !== -1) {
-                    rawNodes[index] = data;
-                } else {
-                    rawNodes.push(data);
-                }
-            }
-            updateCharts();
-        };
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (Array.isArray(data)) {
+          rawNodes = data;
+        } else {
+          // Incremental update
+          const index = rawNodes.findIndex((n) => n.id === data.id);
+          if (index !== -1) {
+            rawNodes[index] = data;
+          } else {
+            rawNodes.push(data);
+          }
+        }
+        updateCharts();
+      };
 
-        // Tooltip
-        const tooltip = d3.select("body").append("div")
-            .style("position", "absolute")
-            .style("background", "rgba(0,0,0,0.8)")
-            .style("color", "#fff")
-            .style("padding", "5px 10px")
-            .style("border-radius", "4px")
-            .style("font-size", "12px")
-            .style("pointer-events", "none")
-            .style("opacity", 0)
-            .style("z-index", 100);
+      // Tooltip
+      const tooltip = d3
+        .select("body")
+        .append("div")
+        .style("position", "absolute")
+        .style("background", "rgba(0,0,0,0.8)")
+        .style("color", "#fff")
+        .style("padding", "5px 10px")
+        .style("border-radius", "4px")
+        .style("font-size", "12px")
+        .style("pointer-events", "none")
+        .style("opacity", 0)
+        .style("z-index", 100);
 
-        function buildHierarchy(nodes) {
-            if (nodes.length === 0) return null;
-            const nodeMap = {};
-            nodes.forEach(n => nodeMap[n.id] = { ...n, children: [] });
-            let root = null;
-            nodes.forEach(n => {
-                if (n.parent_id && nodeMap[n.parent_id]) {
-                    nodeMap[n.parent_id].children.push(nodeMap[n.id]);
-                } else if (!n.parent_id) {
-                    root = nodeMap[n.id];
-                }
-            });
-            return root;
+        // Panel Controls
+        const panel = d3.select("#details-panel");
+        d3.select("#close-panel").on("click", () => panel.classed("active", false));
+
+        function showDetails(nodeData) {
+            d3.select("#detail-status").text(nodeData.status)
+                .attr("class", `detail-content status-${nodeData.status}`);
+            d3.select("#detail-goal").text(nodeData.goal);
+            d3.select("#detail-result").text(nodeData.result || "No result yet.");
+            d3.select("#detail-vram").text(`${nodeData.vram_points || 0} pts`);
+            panel.classed("active", true);
         }
 
-        function updateCharts() {
-            const data = buildHierarchy(rawNodes);
-            if (!data) return;
-            drawTree(data);
-            drawSunburst(data);
-            updateVRAM();
-        }
-
-        function updateVRAM() {
-            const totalVRAM = rawNodes.reduce((acc, n) => acc + (n.vram_points || 0), 0);
-            // Assume 1000 points is "Cluster Saturation"
-            const percentage = Math.min(100, (totalVRAM / 1000) * 100);
-            d3.select("#vram-bar-fill").style("width", percentage + "%");
-            d3.select("#vram-value").text(`${Math.round(percentage)}% Load`);
-        }
-
-        // --- Mandelbrot Tree Logic ---
-        function initTree() {
-            const container = document.getElementById('tree-container');
-            if (!container) return;
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            
-            svg = d3.select("#tree-svg")
-                .attr("width", width)
-                .attr("height", height);
-
-            g = svg.append("g");
-
-            zoom = d3.zoom()
-                .scaleExtent([0.1, 10])
-                .on("zoom", (event) => {
-                    g.attr("transform", event.transform);
-                });
-
-            svg.call(zoom);
-        }
-
-        // Call init immediately
-        document.addEventListener('DOMContentLoaded', initTree);
-
-        function drawTree(data) {
-            if (!svg) initTree();
-            const width = document.getElementById('tree-container').clientWidth;
-            const height = document.getElementById('tree-container').clientHeight;
-
-            const tree = d3.tree().nodeSize([60, 200]);
-            const root = d3.hierarchy(data);
-            tree(root);
-
-            // Center initially if first run
-            if (rawNodes.length > 0 && g.selectAll("*").empty()) {
-                svg.call(zoom.translateTo, 100, height/2);
-            }
-
-            // Update Links
-            const links = g.selectAll(".link")
-                .data(root.links(), d => d.target.data.id);
-
-            links.enter().append("path")
-                .attr("class", "link")
-                .merge(links)
-                .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x));
-
-            links.exit().remove();
-
-            // Update Nodes
-            const nodes = g.selectAll(".node")
-                .data(root.descendants(), d => d.data.id);
-
-            const nodeEnter = nodes.enter().append("g")
-                .attr("class", "node")
-                .attr("transform", d => `translate(${d.y},${d.x})`);
-
-            nodeEnter.append("circle").attr("r", 10);
-            nodeEnter.append("text")
-                .attr("dy", ".35em")
-                .attr("x", d => d.children ? -15 : 15)
-                .style("text-anchor", d => d.children ? "end" : "start");
-
-            const nodeMerge = nodeEnter.merge(nodes);
-            
-            nodeMerge.select("circle")
-                .attr("class", d => `status-${d.data.status}`)
-                .on("mouseover", (event, d) => {
-                    tooltip.transition().duration(200).style("opacity", .9);
-                    tooltip.html(`<strong>${d.data.task_type}</strong><br/>${d.data.summary || d.data.goal}`)
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 28) + "px");
-                })
-                .on("mouseout", (d) => {
-                    tooltip.transition().duration(500).style("opacity", 0);
-                });
-
-            nodeMerge.select("text")
-                .text(d => d.data.goal.substring(0, 30) + (d.data.goal.length > 30 ? "..." : ""));
-
-            nodes.exit().remove();
-        }
-
-        // --- D3 Sunburst Logic ---
-        function drawSunburst(data) {
-            const width = document.getElementById('sunburst-container').clientWidth;
-            const height = document.getElementById('sunburst-container').clientHeight;
-            const radius = Math.min(width, height) / 2.5;
-
-            const svgS = d3.select("#sunburst-svg")
-                .attr("width", width)
-                .attr("height", height)
-                .html("")
-                .append("g")
-                .attr("transform", `translate(${width / 2},${height / 2})`);
-
-            const partition = d3.partition().size([2 * Math.PI, radius]);
-            const root = d3.hierarchy(data).sum(d => 1);
-            partition(root);
-
-            const arc = d3.arc()
-                .startAngle(d => d.x0)
-                .endAngle(d => d.x1)
-                .innerRadius(d => d.y0)
-                .outerRadius(d => d.y1);
-
-            svgS.selectAll("path")
-                .data(root.descendants())
-                .enter().append("path")
-                .attr("display", d => d.depth ? null : "none")
-                .attr("d", arc)
-                .style("stroke", "#050507")
-                .style("stroke-width", "1px")
-                .attr("class", d => `status-${d.data.status}`)
-                .on("mouseover", (event, d) => {
-                    tooltip.transition().duration(200).style("opacity", .9);
-                    tooltip.html(`<strong>${d.data.task_type}</strong><br/>${d.data.summary || d.data.goal}`)
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 28) + "px");
-                })
-                .on("mouseout", (d) => {
-                    tooltip.transition().duration(500).style("opacity", 0);
-                });
-        }
-
-        window.addEventListener('resize', () => {
-            if (!svg) return;
-            const width = document.getElementById('tree-container').clientWidth;
-            const height = document.getElementById('tree-container').clientHeight;
-            svg.attr("width", width).attr("height", height);
+      function buildHierarchy(nodes) {
+        if (nodes.length === 0) return null;
+        const nodeMap = {};
+        nodes.forEach((n) => (nodeMap[n.id] = { ...n, children: [] }));
+        let root = null;
+        nodes.forEach((n) => {
+          if (n.parent_id && nodeMap[n.parent_id]) {
+            nodeMap[n.parent_id].children.push(nodeMap[n.id]);
+          } else if (!n.parent_id) {
+            root = nodeMap[n.id];
+          }
         });
+        return root;
+      }
+
+      function updateCharts() {
+        const data = buildHierarchy(rawNodes);
+        if (!data) return;
+        drawTree(data);
+        drawSunburst(data);
+        updateVRAM();
+      }
+
+      function updateVRAM() {
+        const totalVRAM = rawNodes.reduce(
+          (acc, n) => acc + (n.vram_points || 0),
+          0
+        );
+        // Assume 1000 points is "Cluster Saturation"
+        const percentage = Math.min(100, (totalVRAM / 1000) * 100);
+        d3.select("#vram-bar-fill").style("width", percentage + "%");
+        d3.select("#vram-value").text(`${Math.round(percentage)}% Load`);
+      }
+
+      // --- Mandelbrot Tree Logic ---
+      function initTree() {
+        const container = document.getElementById("tree-container");
+        if (!container) return;
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        svg = d3
+          .select("#tree-svg")
+          .attr("width", width)
+          .attr("height", height);
+
+        g = svg.append("g");
+
+        zoom = d3
+          .zoom()
+          .scaleExtent([0.1, 10])
+          .on("zoom", (event) => {
+            g.attr("transform", event.transform);
+          });
+
+        svg.call(zoom);
+      }
+
+      // Call init immediately
+      document.addEventListener("DOMContentLoaded", initTree);
+
+      function drawTree(data) {
+        if (!svg) initTree();
+        const width = document.getElementById("tree-container").clientWidth;
+        const height = document.getElementById("tree-container").clientHeight;
+
+        const tree = d3.tree().nodeSize([60, 200]);
+        const root = d3.hierarchy(data);
+        tree(root);
+
+        // Center initially if first run
+        if (rawNodes.length > 0 && g.selectAll("*").empty()) {
+          svg.call(zoom.translateTo, 100, height / 2);
+        }
+
+        // Update Links
+        const links = g
+          .selectAll(".link")
+          .data(root.links(), (d) => d.target.data.id);
+
+        links
+          .enter()
+          .append("path")
+          .attr("class", "link")
+          .merge(links)
+          .attr(
+            "d",
+            d3
+              .linkHorizontal()
+              .x((d) => d.y)
+              .y((d) => d.x)
+          );
+
+        links.exit().remove();
+
+        // Update Nodes
+        const nodes = g
+          .selectAll(".node")
+          .data(root.descendants(), (d) => d.data.id);
+
+        const nodeEnter = nodes
+          .enter()
+          .append("g")
+          .attr("class", "node")
+          .attr("transform", (d) => `translate(${d.y},${d.x})`)
+          .on("click", (event, d) => showDetails(d.data));
+
+        nodeEnter.append("circle").attr("r", 10);
+        nodeEnter
+          .append("text")
+          .attr("dy", ".35em")
+          .attr("x", (d) => (d.children ? -15 : 15))
+          .style("text-anchor", (d) => (d.children ? "end" : "start"));
+
+        const nodeMerge = nodeEnter.merge(nodes);
+
+        nodeMerge
+          .select("circle")
+          .attr("class", (d) => `status-${d.data.status}`)
+          .on("mouseover", (event, d) => {
+            tooltip.transition().duration(200).style("opacity", 0.9);
+            tooltip
+              .html(
+                `<strong>${d.data.task_type}</strong><br/>${
+                  d.data.summary || d.data.goal
+                }`
+              )
+              .style("left", event.pageX + 10 + "px")
+              .style("top", event.pageY - 28 + "px");
+          })
+          .on("mouseout", (d) => {
+            tooltip.transition().duration(500).style("opacity", 0);
+          });
+
+        nodeMerge
+          .select("text")
+          .text(
+            (d) =>
+              d.data.goal.substring(0, 30) +
+              (d.data.goal.length > 30 ? "..." : "")
+          );
+
+        nodes.exit().remove();
+      }
+
+      // --- D3 Sunburst Logic ---
+      function drawSunburst(data) {
+        const width = document.getElementById("sunburst-container").clientWidth;
+        const height =
+          document.getElementById("sunburst-container").clientHeight;
+        const radius = Math.min(width, height) / 2.5;
+
+        const svgS = d3
+          .select("#sunburst-svg")
+          .attr("width", width)
+          .attr("height", height)
+          .html("")
+          .append("g")
+          .attr("transform", `translate(${width / 2},${height / 2})`);
+
+        const partition = d3.partition().size([2 * Math.PI, radius]);
+        const root = d3.hierarchy(data).sum((d) => 1);
+        partition(root);
+
+        const arc = d3
+          .arc()
+          .startAngle((d) => d.x0)
+          .endAngle((d) => d.x1)
+          .innerRadius((d) => d.y0)
+          .outerRadius((d) => d.y1);
+
+        svgS
+          .selectAll("path")
+          .data(root.descendants())
+          .enter()
+          .append("path")
+          .attr("display", (d) => (d.depth ? null : "none"))
+          .attr("d", arc)
+          .style("stroke", "#050507")
+          .style("stroke-width", "1px")
+          .attr("class", (d) => `status-${d.data.status}`)
+          .on("click", (event, d) => showDetails(d.data))
+          .on("mouseover", (event, d) => {
+            tooltip.transition().duration(200).style("opacity", 0.9);
+            tooltip
+              .html(
+                `<strong>${d.data.task_type}</strong><br/>${
+                  d.data.summary || d.data.goal
+                }`
+              )
+              .style("left", event.pageX + 10 + "px")
+              .style("top", event.pageY - 28 + "px");
+          })
+          .on("mouseout", (d) => {
+            tooltip.transition().duration(500).style("opacity", 0);
+          });
+      }
+
+      window.addEventListener("resize", () => {
+        if (!svg) return;
+        const width = document.getElementById("tree-container").clientWidth;
+        const height = document.getElementById("tree-container").clientHeight;
+        svg.attr("width", width).attr("height", height);
+      });
     </script>
-</body>
+  </body>
 </html>
