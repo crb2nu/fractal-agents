@@ -7,10 +7,14 @@ import redis
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
+from ..memory import FractalMemory
+
 app = FastAPI()
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+# We use a raw client for Pub/Sub (listening), but Memory for fetching
+r_sub = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+memory = FractalMemory(redis_url=REDIS_URL)
 
 class ConnectionManager:
     def __init__(self):
@@ -34,41 +38,54 @@ async def get():
     with open("src/fractal_agents/visualizer/templates/index.html", "r") as f:
         return HTMLResponse(f.read())
 
-async def redis_poller():
-    """Polls Redis for node updates and broadcasts to clients."""
-    last_nodes = {}
-    while True:
+async def get_all_nodes():
+    """Helper to fetch all current nodes using FractalMemory."""
+    # We need to access the underlying client to scan keys, 
+    # but use memory.get_node_state to deserialize/decompress.
+    keys = memory.client.keys("fractal:node:*")
+    nodes = []
+    for key in keys:
         try:
-            # Get all node keys
-            keys = r.keys("fractal:node:*")
-            nodes = []
-            for key in keys:
-                data = r.get(key)
-                if data:
-                    node = json.loads(data)
-                    nodes.append(node)
-            
-            # Simple state tracking to only broadcast on change
-            current_state = {n['id']: n['status'] for n in nodes}
-            if current_state != last_nodes:
-                await manager.broadcast(json.dumps(nodes))
-                last_nodes = current_state
-                
-        except Exception as e:
-            print(f"Poller error: {e}")
-        
-        await asyncio.sleep(1)
+            # key is bytes from memory.client (decode_responses=False)
+            node_id = key.decode("utf-8").split(":")[-1]
+            node = memory.get_node_state(node_id)
+            if node:
+                nodes.append(node)
+        except Exception:
+            pass
+    return nodes
+
+async def redis_listener():
+    """Listens to Redis Pub/Sub for node updates."""
+    pubsub = r_sub.pubsub()
+    pubsub.subscribe("fractal:updates")
+    
+    async for message in pubsub.listen():
+        if message["type"] == "message":
+            try:
+                # Broadcast the single node update directly
+                await manager.broadcast(message["data"])
+            except Exception as e:
+                print(f"Broadcast error: {e}")
 
 @app.on_event("startup")
 async def startup_event():
-    asyncio.create_task(redis_poller())
+    asyncio.create_task(redis_listener())
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
+    
+    # Send initial state
     try:
+        nodes = await get_all_nodes()
+        await websocket.send_text(json.dumps(nodes))
+        
         while True:
             # Keep connection alive
             await websocket.receive_text()
     except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WS Error: {e}")
         manager.disconnect(websocket)

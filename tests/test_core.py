@@ -39,6 +39,9 @@ class MockMemory:
     def get_summary(self, node_id: str) -> str:
         return self.summaries.get(node_id, "")
 
+    def publish_event(self, channel: str, message: dict[str, Any]) -> None:
+        pass  # Mock publication
+
 
 class TestFractalNode:
     """Tests for the FractalNode class."""
@@ -67,7 +70,7 @@ class TestFractalNode:
         )
 
         assert node.goal == "Test goal"
-        assert node.status == "PENDING"
+        assert node.state["status"] == "PENDING"
         assert node.depth == 0
         assert node.max_depth == 2
         assert len(node.id) == 36  # UUID length
@@ -139,7 +142,7 @@ class TestFractalNode:
         result = await node.run()
 
         assert "Response to:" in result
-        assert node.status == "COMPLETED"
+        assert node.state["status"] == "COMPLETED"
         assert node.id in mock_memory.summaries
 
     @pytest.mark.asyncio
@@ -159,8 +162,8 @@ class TestFractalNode:
 
         result = await node.run()
 
-        assert node.status == "COMPLETED"
-        assert len(node.children_ids) == 3  # Default subgoals
+        assert node.state["status"] == "COMPLETED"
+        assert len(node.state["children_ids"]) == 3  # Default subgoals
         assert "Synthesized:" in result
 
     def test_parent_child_relationship(
@@ -204,7 +207,7 @@ class TestFractalNode:
         assert state["vram_points"] == 0
 
         # Manually set IN_PROGRESS and re-persist
-        node.status = "IN_PROGRESS"
+        node.state["status"] = "IN_PROGRESS"
         node._persist()
 
         state = mock_memory.nodes[node.id]

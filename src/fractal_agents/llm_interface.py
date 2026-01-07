@@ -102,8 +102,8 @@ class LiteLLM(LLMInterface):
                 :num_subgoals
             ]
 
-    async def summarize(self, text: str) -> str:
-        model = self._get_model("summary")
+    async def summarize(self, text: str, model_hint: str = "summary") -> str:
+        model = self._get_model(model_hint)
         response = await self.client.chat.completions.create(
             model=model,
             messages=[

@@ -66,3 +66,16 @@ root = FractalNode(goal="Write a complete sci-fi novel about AI")
 # Run the fractal process
 root.run()
 ```
+
+## Real-time Visualization
+
+Fractal Agents includes a real-time visualization dashboard to monitor the agent tree growth and VRAM pressure.
+
+1.  **Ensure Redis is running.**
+2.  **Start the visualizer:**
+    ```bash
+    ./run_visualizer.sh
+    ```
+3.  **Open your browser:** Go to [http://localhost:8000](http://localhost:8000)
+
+The visualizer uses Redis Pub/Sub for instant updates and provides a Mandelbrot-style zoomable tree view and a recursive depth sunburst chart.

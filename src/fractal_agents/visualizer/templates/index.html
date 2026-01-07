@@ -65,9 +65,32 @@
         let svg, g, zoom;
 
         ws.onmessage = (event) => {
-            rawNodes = JSON.parse(event.data);
+            const data = JSON.parse(event.data);
+            if (Array.isArray(data)) {
+                rawNodes = data;
+            } else {
+                // Incremental update
+                const index = rawNodes.findIndex(n => n.id === data.id);
+                if (index !== -1) {
+                    rawNodes[index] = data;
+                } else {
+                    rawNodes.push(data);
+                }
+            }
             updateCharts();
         };
+
+        // Tooltip
+        const tooltip = d3.select("body").append("div")
+            .style("position", "absolute")
+            .style("background", "rgba(0,0,0,0.8)")
+            .style("color", "#fff")
+            .style("padding", "5px 10px")
+            .style("border-radius", "4px")
+            .style("font-size", "12px")
+            .style("pointer-events", "none")
+            .style("opacity", 0)
+            .style("z-index", 100);
 
         function buildHierarchy(nodes) {
             if (nodes.length === 0) return null;
@@ -167,7 +190,16 @@
             const nodeMerge = nodeEnter.merge(nodes);
             
             nodeMerge.select("circle")
-                .attr("class", d => `status-${d.data.status}`);
+                .attr("class", d => `status-${d.data.status}`)
+                .on("mouseover", (event, d) => {
+                    tooltip.transition().duration(200).style("opacity", .9);
+                    tooltip.html(`<strong>${d.data.task_type}</strong><br/>${d.data.summary || d.data.goal}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", (d) => {
+                    tooltip.transition().duration(500).style("opacity", 0);
+                });
 
             nodeMerge.select("text")
                 .text(d => d.data.goal.substring(0, 30) + (d.data.goal.length > 30 ? "..." : ""));
@@ -205,7 +237,16 @@
                 .attr("d", arc)
                 .style("stroke", "#050507")
                 .style("stroke-width", "1px")
-                .attr("class", d => `status-${d.data.status}`);
+                .attr("class", d => `status-${d.data.status}`)
+                .on("mouseover", (event, d) => {
+                    tooltip.transition().duration(200).style("opacity", .9);
+                    tooltip.html(`<strong>${d.data.task_type}</strong><br/>${d.data.summary || d.data.goal}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", (d) => {
+                    tooltip.transition().duration(500).style("opacity", 0);
+                });
         }
 
         window.addEventListener('resize', () => {

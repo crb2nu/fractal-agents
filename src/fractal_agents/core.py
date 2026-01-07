@@ -73,6 +73,7 @@ class FractalNode:
         
         try:
             self.memory.save_node_state(self.id, self.state)
+            self.memory.publish_event("fractal:updates", self.state)
         except Exception as e:
             logger.error(f"Failed to persist node {self.id}: {e}")
 

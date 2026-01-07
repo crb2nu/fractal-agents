@@ -55,3 +55,7 @@ class FractalMemory:
         if val:
             return val.decode("utf-8") if isinstance(val, bytes) else val
         return ""
+
+    def publish_event(self, channel: str, message: Dict[str, Any]):
+        """Publishes an event to a Redis channel."""
+        self.client.publish(channel, json.dumps(message))
