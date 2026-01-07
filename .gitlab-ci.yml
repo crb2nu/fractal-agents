@@ -40,24 +40,21 @@ test:
 build:docker:
   stage: build
   image:
-    name: moby/buildkit:latest
+    name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   variables:
     HARBOR_REGISTRY: registry.harbor.lan/flexinfer
     IMAGE_NAME: fractal-agents
-  before_script:
-    - mkdir -p ~/.docker
-    - echo "{\"auths\":{\"${HARBOR_REGISTRY}\":{\"auth\":\"$(echo -n ${HARBOR_USER}:${HARBOR_PASSWORD} | base64)\"}}}" > ~/.docker/config.json
   script:
-    - |
-      buildctl-daemonless.sh build \
-        --frontend dockerfile.v0 \
-        --local context=. \
-        --local dockerfile=. \
-        --output type=image,name=${HARBOR_REGISTRY}/${IMAGE_NAME}:${CI_COMMIT_SHORT_SHA},push=true \
-        --output type=image,name=${HARBOR_REGISTRY}/${IMAGE_NAME}:latest,push=true \
-        --export-cache type=registry,ref=${HARBOR_REGISTRY}/${IMAGE_NAME}:buildcache \
-        --import-cache type=registry,ref=${HARBOR_REGISTRY}/${IMAGE_NAME}:buildcache
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${HARBOR_REGISTRY}\":{\"username\":\"${HARBOR_USER}\",\"password\":\"${HARBOR_PASSWORD}\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${HARBOR_REGISTRY}/${IMAGE_NAME}:${CI_COMMIT_SHORT_SHA}"
+      --destination "${HARBOR_REGISTRY}/${IMAGE_NAME}:latest"
+      --cache=true
+      --cache-repo="${HARBOR_REGISTRY}/${IMAGE_NAME}/cache"
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
