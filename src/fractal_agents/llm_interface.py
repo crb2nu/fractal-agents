@@ -21,6 +21,14 @@ class LLMInterface(ABC):
     async def synthesize_results(self, goal: str, subtasks: List[dict], context: str = "") -> str:
         pass
 
+    @abstractmethod
+    async def generate_subgoals(self, goal: str, num_subgoals: int = 3) -> List[str]:
+        pass
+
+    @abstractmethod
+    async def summarize(self, text: str, model_hint: str = "summary") -> str:
+        pass
+
 
 class LiteLLM(LLMInterface):
     def __init__(self, api_base: str = None, api_key: str = None):

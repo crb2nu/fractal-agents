@@ -24,6 +24,8 @@ class TestLLMInterface:
             "generate_response",
             "generate_subgoals",
             "summarize",
+            "triage_task",
+            "synthesize_results",
         ]
 
         for method_name in methods:
@@ -181,3 +183,32 @@ class TestLiteLLM:
 
         assert result == long_response
         mock_openai_client.chat.completions.create.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_triage_task(self, litellm: "LiteLLM", mock_openai_client: MagicMock) -> None:
+        """Test task triage."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[
+            0
+        ].message.content = '{"action": "SPLIT", "reason": "Complex", "num_subgoals": 3}'
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        result = await litellm.triage_task("Goal")
+
+        assert result["action"] == "SPLIT"
+        assert result["num_subgoals"] == 3
+
+    @pytest.mark.asyncio
+    async def test_synthesize_results(
+        self, litellm: "LiteLLM", mock_openai_client: MagicMock
+    ) -> None:
+        """Test results synthesis."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Synthesized whole"
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        result = await litellm.synthesize_results("Goal", [{"goal": "G1", "result": "R1"}])
+
+        assert result == "Synthesized whole"

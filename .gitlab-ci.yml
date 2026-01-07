@@ -1,7 +1,7 @@
 # Python CI - Uses shared templates from platform/gitops
 include:
-  - project: 'platform/gitops'
-    file: '/ci/templates/python.yml'
+  - project: "platform/gitops"
+    file: "/ci/templates/python.yml"
 
 stages: [lint, test, build, publish]
 
@@ -34,7 +34,6 @@ test:
   script:
     - pip install pytest pytest-asyncio
     - python -m pytest tests/ -v
-  allow_failure: true  # Tests may require external services
 
 build:docker:
   stage: build
