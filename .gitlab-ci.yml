@@ -23,6 +23,7 @@ stages: [lint, test, build, publish]
 
 lint:
   extends: .python-lint
+  allow_failure: false
 
 test:
   extends: .python-base

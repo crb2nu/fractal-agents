@@ -1,11 +1,12 @@
 import os
-import redis
+from typing import Any, Dict, List
+
 import pytest
-import asyncio
-from typing import List, Dict, Any
-from fractal_agents.memory import FractalMemory
+import redis
+
 from fractal_agents.core import FractalNode
-from fractal_agents.llm_interface import LLMInterface, LiteLLM
+from fractal_agents.llm_interface import LLMInterface
+from fractal_agents.memory import FractalMemory
 
 # Integration test requires Redis.
 # In CI, REDIS_URL should be set (e.g., redis://redis:6379/0)
@@ -102,7 +103,7 @@ async def test_memory_integration_with_real_redis(integration_memory):
 
 @pytest.mark.asyncio
 async def test_node_mitosis_loop_integration(integration_memory):
-    """Test the full FractalNode loop (Triage -> Split -> Execute -> Synthesize) with real storage."""
+    """Test the full FractalNode mitosis loop with real storage."""
     llm = RobustMockLLM()
 
     # Use a goal that triggers a split
