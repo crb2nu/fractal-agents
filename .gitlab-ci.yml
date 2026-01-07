@@ -47,7 +47,7 @@ build:docker:
     IMAGE_NAME: fractal-agents
   script:
     - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"${HARBOR_REGISTRY}\":{\"username\":\"${HARBOR_REGISTRY_USER}\",\"password\":\"${HARBOR_REGISTRY_PASSWORD}\"}}}" > /kaniko/.docker/config.json
+    - echo "{\"auths\":{\"${HARBOR_REGISTRY}\":{\"username\":\"${HARBOR_USERNAME}\",\"password\":\"${HARBOR_PASSWORD}\"}}}" > /kaniko/.docker/config.json
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
