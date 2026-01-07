@@ -14,11 +14,11 @@ class LLMInterface(ABC):
         pass
 
     @abstractmethod
-    async def generate_subgoals(self, goal: str, num_subgoals: int = 3) -> List[str]:
+    async def triage_task(self, goal: str, context: str = "") -> dict:
         pass
 
     @abstractmethod
-    async def summarize(self, text: str) -> str:
+    async def synthesize_results(self, goal: str, subtasks: List[dict], context: str = "") -> str:
         pass
 
 
@@ -79,6 +79,30 @@ class LiteLLM(LLMInterface):
 
         return draft
 
+    async def triage_task(self, goal: str, context: str = "") -> dict:
+        """
+        Decides whether to SOLVE or SPLIT.
+        Returns: {"action": "SOLVE"|"SPLIT", "reason": str, "num_subgoals": int}
+        """
+        model = self._get_model("reasoning")
+        prompt = (
+            "Triage the following goal based on the provided context.\n"
+            "Determine if the task can be solved directly or if it needs to be split "
+            "into sub-tasks.\n"
+            "If it needs splitting, specify the number of sub-tasks (2-5).\n"
+            "Return ONLY a JSON object: "
+            '{"action": "SOLVE"|"SPLIT", "reason": "str", "num_subgoals": int}\n\n'
+            f"Goal: {goal}\n"
+            f"Context: {context[:500]}"
+        )
+        response = await self.client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+        )
+        return json.loads(response.choices[0].message.content.strip())
+
     async def generate_subgoals(self, goal: str, num_subgoals: int = 3) -> List[str]:
         model = self._get_model("reasoning")
         prompt = (
@@ -101,6 +125,25 @@ class LiteLLM(LLMInterface):
             return [line.strip("- *") for line in content.split("\n") if line.strip()][
                 :num_subgoals
             ]
+
+    async def synthesize_results(self, goal: str, subtasks: List[dict], context: str = "") -> str:
+        """
+        Merges results from multiple sub-tasks into a single cohesive response.
+        """
+        model = self._get_model("reasoning")
+        results_summary = "\n".join([f"- {t['goal']}: {t['result']}" for t in subtasks])
+        prompt = (
+            f"You are synthesizing the results of sub-tasks for the following goal: {goal}\n"
+            f"Context: {context[:500]}\n\n"
+            f"Sub-task results:\n{results_summary}\n\n"
+            f"Write a comprehensive and cohesive final response that solves the original goal."
+        )
+        response = await self.client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+        )
+        return response.choices[0].message.content.strip()
 
     async def summarize(self, text: str, model_hint: str = "summary") -> str:
         model = self._get_model(model_hint)

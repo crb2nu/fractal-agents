@@ -13,11 +13,17 @@ class MockLLMInterface:
     ) -> str:
         return f"Response to: {prompt[:50]}"
 
+    async def triage_task(self, goal: str, context: str = "") -> dict:
+        return {"action": "SPLIT", "reason": "Test reason", "num_subgoals": 3}
+
     async def generate_subgoals(self, goal: str, num_subgoals: int = 3) -> list[str]:
         return [f"Subgoal {i + 1}" for i in range(num_subgoals)]
 
     async def summarize(self, text: str) -> str:
         return f"Summary of: {text[:30]}"
+
+    async def synthesize_results(self, goal: str, subtasks: list[dict], context: str = "") -> str:
+        return "Synthesized result from mocks"
 
 
 class MockMemory:
@@ -56,9 +62,7 @@ class TestFractalNode:
         """Create a mock memory."""
         return MockMemory()
 
-    def test_node_creation(
-        self, mock_llm: MockLLMInterface, mock_memory: MockMemory
-    ) -> None:
+    def test_node_creation(self, mock_llm: MockLLMInterface, mock_memory: MockMemory) -> None:
         """Test basic node creation."""
         from fractal_agents.core import FractalNode
 
@@ -164,7 +168,7 @@ class TestFractalNode:
 
         assert node.state["status"] == "COMPLETED"
         assert len(node.state["children_ids"]) == 3  # Default subgoals
-        assert "Synthesized:" in result
+        assert "Synthesized result" in result
 
     def test_parent_child_relationship(
         self, mock_llm: MockLLMInterface, mock_memory: MockMemory

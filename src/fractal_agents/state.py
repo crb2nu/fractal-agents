@@ -1,5 +1,6 @@
 from typing import List, Optional, TypedDict
 
+
 class NodeState(TypedDict):
     id: str
     goal: str

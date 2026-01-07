@@ -51,7 +51,11 @@ class CodebaseAgent:
 
         # Start Fractal Process with KG enabled
         root = FractalNode(
-            goal=f"Analyze the codebase at {self.project_path}. Return the final code changes in a JSON format: {{'files': [{{'path': str, 'content': str}}]}}",
+            goal=(
+                f"Analyze the codebase at {self.project_path}. "
+                "Return the final code changes in a JSON format: "
+                "{'files': [{'path': str, 'content': str}]}"
+            ),
             llm=self.llm,
             memory=self.memory,
             knowledge=self.kg,

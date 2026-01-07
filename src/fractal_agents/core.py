@@ -1,7 +1,7 @@
 import asyncio
-import uuid
 import logging
-from typing import List, Optional
+import uuid
+from typing import Optional
 
 from .knowledge import FractalKnowledgeGraph
 from .llm_interface import LiteLLM, LLMInterface
@@ -12,6 +12,7 @@ from .state import NodeState, reduce_node_state
 GLOBAL_MAX_DEPTH = 50
 
 logger = logging.getLogger(__name__)
+
 
 class FractalNode:
     def __init__(
@@ -31,7 +32,7 @@ class FractalNode:
         self.goal = goal
         self.parent_id = parent_id
         self.context = context
-        
+
         # Initialize State using TypedDict
         self.state: NodeState = {
             "id": self.id,
@@ -43,9 +44,9 @@ class FractalNode:
             "summary": "",
             "depth": depth,
             "task_type": task_type,
-            "vram_points": 0
+            "vram_points": 0,
         }
-        
+
         self.depth = depth
         self.max_depth = min(max_depth, GLOBAL_MAX_DEPTH)
         self.task_type = task_type
@@ -70,7 +71,7 @@ class FractalNode:
         # Ideally, it should be in the reducer, but for now we keep simple logic.
         if self.state["status"] == "IN_PROGRESS":
             self.state["vram_points"] = 100 if self.task_type == "reasoning" else 30
-        
+
         try:
             self.memory.save_node_state(self.id, self.state)
             self.memory.publish_event("fractal:updates", self.state)
@@ -112,9 +113,15 @@ class FractalNode:
                 except Exception as e:
                     logger.warning(f"Knowledge retrieval failed: {e}")
 
-            if self.is_complex():
-                self._dispatch("SPLIT", {}) # Status update only for now
-                subgoals = await self.llm.generate_subgoals(self.goal)
+            # 2. Dynamic Triage (Phase 1)
+            triage = await self.llm.triage_task(self.goal, self.context)
+            action = triage.get("action", "SOLVE")
+            reason = triage.get("reason", "No reason provided")
+            num_subgoals = triage.get("num_subgoals", 3)
+
+            if action == "SPLIT" and self.depth < self.max_depth:
+                self._dispatch("SPLIT", {"reason": reason})
+                subgoals = await self.llm.generate_subgoals(self.goal, num_subgoals=num_subgoals)
 
                 # Summarize parent context for children if it's too long
                 summarized_context = self.context
@@ -143,47 +150,46 @@ class FractalNode:
                 self._dispatch("SPLIT", {"children": children_ids})
 
                 # Execute all children concurrently
-                print(f"[{'  ' * self.depth}] -> Mitosis: Spawning {len(children)} children...")
+                print(
+                    f"[{'  ' * self.depth}] -> Mitosis ({num_subgoals}): "
+                    f"Spawning {len(children)} children..."
+                )
 
                 # Store tasks to allow cancellation
                 child_tasks = [asyncio.create_task(child.run()) for child in children]
-                
+
                 # Run children with exception handling
                 child_results = await asyncio.gather(*child_tasks, return_exceptions=True)
 
+                child_node_states = []
                 valid_results = []
                 failures = []
 
                 for i, res in enumerate(child_results):
+                    child_state = children[i].state
+                    child_node_states.append(child_state)
                     if isinstance(res, Exception):
                         failures.append(f"Child {children[i].id[:4]} failed: {str(res)}")
                     else:
                         valid_results.append(res)
 
-                # 2. Parallel Synthesis
-                final_result = ""
-                if failures:
-                    # If some failed, we mention it in the result but try to synthesize what we have
-                    print(f"[{'  ' * self.depth}] WARNING: {len(failures)} children failed.")
-                    final_result = (
-                        "Synthesized (Partial): "
-                        + " | ".join(valid_results)
-                        + f" | Failures: {'; '.join(failures)}"
-                    )
-                else:
-                    final_result = "Synthesized: " + " | ".join(valid_results)
-
-                # If no valid results, mark as failed
+                # 3. Cohesive Synthesis (Phase 2)
                 if not valid_results and failures:
                     self._dispatch("FAIL", {"error": f"All subtasks failed: {'; '.join(failures)}"})
-                else:
-                    summary = await self.llm.summarize(final_result)
-                    self._dispatch("COMPLETE", {"result": final_result, "summary": summary})
+                    return self.state["result"]
+
+                print(f"[{'  ' * self.depth}] -> Synthesizing {len(valid_results)} results...")
+                final_result = await self.llm.synthesize_results(
+                    self.goal, child_node_states, self.context
+                )
+
+                summary = await self.llm.summarize(final_result)
+                self._dispatch("COMPLETE", {"result": final_result, "summary": summary})
 
             else:
                 # --- SPECULATIVE SOLVE ---
-                # Leaf nodes use the fast model first
-                print(f"[{'  ' * self.depth}] -> Solving (Speculative)...")
+                # Leaf nodes or simple tasks use the fast model first
+                print(f"[{'  ' * self.depth}] -> Solving (Action: {action}, Reason: {reason})...")
                 result = await self.llm.generate_response(
                     self.goal, self.context, model_hint="speculative"
                 )

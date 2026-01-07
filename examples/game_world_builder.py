@@ -30,7 +30,10 @@ class WorldBuilderAgent:
         # Depth 1: Regions & Key Landmarks
         # Depth 2: Local Elements (NPCs, Map Tiles, Storylets)
         root = FractalNode(
-            goal=f"Decompose this world-building vision into specific regions, landmarks, NPCs, and map tiles: {self.root_goal}",
+            goal=(
+                "Decompose this world-building vision into specific regions, "
+                f"landmarks, NPCs, and map tiles: {self.root_goal}"
+            ),
             llm=self.llm,
             memory=self.memory,
             max_depth=2,
@@ -65,24 +68,27 @@ class WorldBuilderAgent:
 
     def save_as_npc(self, state: Dict[str, Any]):
         prompt = (
-            f"Convert this NPC description into a JSON profile: "
-            f"{{'name': str, 'role': str, 'mood': str, 'dialogue_style': str, 'stats': {{'health': int, 'power': int}}}}.\n\n"
+            "Convert this NPC description into a JSON profile: "
+            "{'name': str, 'role': str, 'mood': str, 'dialogue_style': str, "
+            "'stats': {'health': int, 'power': int}}.\n\n"
             f"Description: {state['result']}"
         )
         self._generate_and_save(prompt, self.npc_dir, f"npc_{state['id'][:8]}.json")
 
     def save_as_tile(self, state: Dict[str, Any]):
         prompt = (
-            f"Convert this terrain/map tile description into a JSON tile config: "
-            f"{{'tile_id': str, 'type': 'field|forest|ruins|water', 'description': str, 'effects': [str]}}.\n\n"
+            "Convert this terrain/map tile description into a JSON tile config: "
+            "{'tile_id': str, 'type': 'field|forest|ruins|water', "
+            "'description': str, 'effects': [str]}}.\n\n"
             f"Description: {state['result']}"
         )
         self._generate_and_save(prompt, self.tile_dir, f"tile_{state['id'][:8]}.json")
 
     def save_as_storylet(self, state: Dict[str, Any]):
         prompt = (
-            f"Convert this narrative event into a valid Storylet JSON: "
-            f"{{'storylet': {{'id': str, 'title': str, 'choices': [{{'text': str, 'outcome': str}}]}}}}.\n\n"
+            "Convert this narrative event into a valid Storylet JSON: "
+            "{'storylet': {'id': str, 'title': str, "
+            "'choices': [{'text': str, 'outcome': str}]}}.\n\n"
             f"Content: {state['result']}"
         )
         self._generate_and_save(prompt, self.storylet_dir, f"storylet_{state['id'][:8]}.json")
