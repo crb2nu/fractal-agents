@@ -58,17 +58,6 @@ build:docker:
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
-deploy:k3s:
-  stage: publish
-  image: bitnami/kubectl:latest
-  variables:
-    KUBECONFIG: /tmp/kubeconfig
-    HARBOR_REGISTRY: registry.harbor.lan/flexinfer
-    IMAGE_NAME: fractal-agents
-  before_script:
-    - echo "$KUBE_CONFIG" | base64 -d > $KUBECONFIG
-  script:
-    - kubectl -n ai set image deployment/fractal-agents-core core=${HARBOR_REGISTRY}/${IMAGE_NAME}:${CI_COMMIT_SHORT_SHA}
-    - kubectl -n ai rollout status deployment/fractal-agents-core --timeout=120s
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
+# Deployment is handled by Flux GitOps - it monitors this repo and auto-deploys
+# when k8s/deployment.yaml changes. The image uses :latest which is updated
+# by the build:docker stage above.
