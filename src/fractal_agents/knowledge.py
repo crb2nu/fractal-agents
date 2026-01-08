@@ -99,39 +99,160 @@ class QdrantFractalStore(KnowledgeStore):
 
 class FractalKnowledgeGraph:
     """
-    Implements recursive retrieval logic across the fractal store.
+    Implements recursive retrieval and indexing logic across the fractal store.
+
+    Provides:
+    - Recursive depth-first retrieval following parent-child relationships
+    - Automatic embedding generation via LiteLLM
+    - Node indexing with hierarchical structure preservation
+    - Context summarization for retrieved knowledge
     """
 
     def __init__(self, store: KnowledgeStore, llm_client: Any):
         self.store = store
         self.llm = llm_client
 
-    def _get_embedding(self, text: str) -> List[float]:
-        # Using the OpenAI-compatible client from our LLM interface
-        # Note: In a real app, you'd use LiteLLM's embedding endpoint
-        response = self.llm.client.embeddings.create(input=[text], model="text-embedding-3-small")
+    async def _get_embedding_async(self, text: str) -> List[float]:
+        """Async embedding generation using the LLM client."""
+        # Use the async client for embeddings
+        response = await self.llm.client.embeddings.create(
+            input=[text], model="text-embedding-3-small"
+        )
         return response.data[0].embedding
 
+    def _get_embedding(self, text: str) -> List[float]:
+        """Sync embedding generation (legacy compatibility)."""
+        import asyncio
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # We're in an async context, create a new task
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    future = pool.submit(asyncio.run, self._get_embedding_async(text))
+                    return future.result()
+            else:
+                return loop.run_until_complete(self._get_embedding_async(text))
+        except RuntimeError:
+            return asyncio.run(self._get_embedding_async(text))
+
+    async def index_node(
+        self,
+        content: str,
+        parent_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        depth: int = 0,
+    ) -> str:
+        """
+        Indexes a knowledge node with automatic embedding generation.
+
+        Returns the node ID for use as a parent in child nodes.
+        """
+        node = KnowledgeNode(
+            content=content, metadata=metadata or {}, parent_id=parent_id, depth=depth
+        )
+
+        vector = await self._get_embedding_async(content)
+        self.store.add_node(node, vector)
+
+        return node.id
+
+    async def index_hierarchy(
+        self, nodes: List[Dict[str, Any]], parent_id: Optional[str] = None, base_depth: int = 0
+    ) -> List[str]:
+        """
+        Indexes a hierarchy of nodes.
+
+        Each node dict should have:
+        - content: str
+        - children: List[Dict] (optional)
+        - metadata: Dict (optional)
+        """
+        indexed_ids = []
+
+        for node_data in nodes:
+            content = node_data.get("content", "")
+            metadata = node_data.get("metadata", {})
+            children = node_data.get("children", [])
+
+            node_id = await self.index_node(
+                content=content, parent_id=parent_id, metadata=metadata, depth=base_depth
+            )
+            indexed_ids.append(node_id)
+
+            # Recursively index children
+            if children:
+                child_ids = await self.index_hierarchy(
+                    children, parent_id=node_id, base_depth=base_depth + 1
+                )
+                indexed_ids.extend(child_ids)
+
+        return indexed_ids
+
     def query(self, query_text: str, max_depth: int = 2, threshold: float = 0.7) -> str:
+        """
+        Performs recursive retrieval from the knowledge graph.
+
+        Starts at top-level nodes and "zooms in" to children when relevant.
+        """
         vector = self._get_embedding(query_text)
 
-        # Start recursive retrieval
+        knowledge_chunks = []
+        self._recursive_search(vector, None, 0, max_depth, threshold, knowledge_chunks)
+
+        return "\n\n".join(knowledge_chunks)
+
+    async def query_async(self, query_text: str, max_depth: int = 2, threshold: float = 0.7) -> str:
+        """Async version of query."""
+        vector = await self._get_embedding_async(query_text)
+
         knowledge_chunks = []
         self._recursive_search(vector, None, 0, max_depth, threshold, knowledge_chunks)
 
         return "\n\n".join(knowledge_chunks)
 
     def _recursive_search(
-        self, vector, parent_id, current_depth, max_depth, threshold, results_accumulator
+        self,
+        vector: List[float],
+        parent_id: Optional[str],
+        current_depth: int,
+        max_depth: int,
+        threshold: float,
+        results_accumulator: List[str],
     ):
+        """Depth-first recursive search through the knowledge hierarchy."""
         if current_depth > max_depth:
             return
 
         hits = self.store.search(vector, parent_id=parent_id, top_k=3)
         for hit in hits:
             if hit["score"] >= threshold:
-                results_accumulator.append(f"[Depth {current_depth}] {hit['content']}")
+                depth_marker = "  " * current_depth
+                results_accumulator.append(
+                    f"{depth_marker}[L{current_depth}] {hit['content'][:500]}"
+                )
                 # Zoom in: Search for children of this relevant node
                 self._recursive_search(
                     vector, hit["id"], current_depth + 1, max_depth, threshold, results_accumulator
                 )
+
+    async def summarize_knowledge(
+        self, query_text: str, max_depth: int = 2, threshold: float = 0.6
+    ) -> str:
+        """
+        Retrieves and summarizes knowledge relevant to the query.
+
+        Uses the LLM to create a cohesive summary from the retrieved chunks.
+        """
+        raw_knowledge = await self.query_async(query_text, max_depth, threshold)
+
+        if not raw_knowledge:
+            return ""
+
+        summary = await self.llm.summarize(
+            f"Summarize the following knowledge relevant to '{query_text}':\n\n{raw_knowledge}"
+        )
+
+        return summary
