@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fractal-agents"
-version = "0.1.0"
+version = "0.2.0"
 description = "Recursive agentic framework for complex task execution"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,6 +15,7 @@ authors = [
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
     "redis>=5.0.0",
@@ -29,6 +30,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+observability = [
+    "flexinfer-observability>=0.3.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.23.0",

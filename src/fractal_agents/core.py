@@ -3,9 +3,11 @@ import logging
 import uuid
 from typing import Optional
 
+from .hitl import InterruptManager
 from .knowledge import FractalKnowledgeGraph
 from .llm_interface import LiteLLM, LLMInterface
 from .memory import FractalMemory
+from .observability import FractalMetrics
 from .state import NodeState, reduce_node_state
 
 # Global safety limit to prevent infinite recursion bugs
@@ -27,6 +29,8 @@ class FractalNode:
         max_depth: int = 3,
         task_type: str = "general",
         timeout: int = 300,  # Default 5 minutes for recursion chain
+        interrupt_manager: Optional[InterruptManager] = None,
+        metrics: Optional[FractalMetrics] = None,
     ):
         self.id = str(uuid.uuid4())
         self.goal = goal
@@ -56,7 +60,15 @@ class FractalNode:
         self.memory = memory or FractalMemory()
         self.knowledge = knowledge
 
+        # HITL and Observability
+        self.interrupt_manager = interrupt_manager
+        self.metrics = metrics
+
         self._persist()
+
+        # Emit node created event
+        if self.metrics:
+            self.metrics.emit_tree_event(self.state, "node_created")
 
     def _dispatch(self, action_type: str, payload: dict = None):
         """Apply a state change via the reducer."""
@@ -64,6 +76,18 @@ class FractalNode:
             payload = {}
         self.state = reduce_node_state(self.state, {"type": action_type, "payload": payload})
         self._persist()
+
+        # Emit tree events for observability
+        if self.metrics:
+            event_map = {
+                "START": "node_started",
+                "COMPLETE": "node_completed",
+                "FAIL": "node_failed",
+                "CANCEL": "node_cancelled",
+                "SPLIT": "node_split",
+            }
+            if action_type in event_map:
+                self.metrics.emit_tree_event(self.state, event_map[action_type])
 
     def _persist(self):
         # VRAM Estimation logic (computed during persist or reducer? Reducer is purer)
@@ -143,6 +167,8 @@ class FractalNode:
                         depth=self.depth + 1,
                         max_depth=self.max_depth,
                         timeout=max(10, self.timeout - 10),  # Adjust child timeout
+                        interrupt_manager=self.interrupt_manager,
+                        metrics=self.metrics,
                     )
                     children_ids.append(child.id)
                     children.append(child)
