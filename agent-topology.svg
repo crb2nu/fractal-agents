@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1400">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10.0 10.0" refX="10.0" refY="5.0" markerWidth="10.0" markerHeight="10.0" orient="auto-start-reverse"><path d="M 0 0 L 10.0 5.0 L 0 10.0 Z" fill="#334155"/></marker>
+  </defs>
+<script type="text/javascript"><![CDATA[
+// Interactive SVG logic for pan, zoom, and highlighting
+
+(function() {
+    let svg = document.querySelector('svg');
+    if (!svg) return;
+
+    // Pan and Zoom state
+    let state = {
+        panning: false,
+        pointX: 0,
+        pointY: 0,
+        scale: 1,
+        viewBox: { x: 0, y: 0, w: 0, h: 0 }
+    };
+
+    // Initialize viewBox
+    const vb = svg.viewBox.baseVal;
+    state.viewBox = { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
+
+    // Mouse events for Panning
+    svg.addEventListener('mousedown', (e) => {
+        state.panning = true;
+        state.pointX = e.clientX;
+        state.pointY = e.clientY;
+        svg.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mouseup', () => {
+        state.panning = false;
+        svg.style.cursor = 'grab';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!state.panning) return;
+        e.preventDefault();
+        
+        const dx = (e.clientX - state.pointX) / state.scale;
+        const dy = (e.clientY - state.pointY) / state.scale;
+        
+        state.viewBox.x -= dx;
+        state.viewBox.y -= dy;
+        
+        state.pointX = e.clientX;
+        state.pointY = e.clientY;
+        
+        updateViewBox();
+    });
+
+    // Wheel event for Zooming
+    svg.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        
+        const zoomSpeed = 0.1;
+        const delta = e.deltaY > 0 ? 1 + zoomSpeed : 1 - zoomSpeed;
+        
+        // Zoom centered on mouse
+        // Need to convert screen coords to SVG coords
+        // Approximate for now: zoom center of viewbox
+        
+        const w = state.viewBox.w;
+        const h = state.viewBox.h;
+        
+        state.viewBox.w *= delta;
+        state.viewBox.h *= delta;
+        
+        // Adjust x/y to keep center stable
+        state.viewBox.x += (w - state.viewBox.w) / 2;
+        state.viewBox.y += (h - state.viewBox.h) / 2;
+        
+        state.scale /= delta;
+        
+        updateViewBox();
+    });
+
+    function updateViewBox() {
+        svg.setAttribute('viewBox', `${state.viewBox.x} ${state.viewBox.y} ${state.viewBox.w} ${state.viewBox.h}`);
+    }
+
+    // Highlighting Logic
+    // Assumes nodes have IDs and edges connect them
+    // This requires structure in the SVG that we need to ensure the renderer produces
+    // For now, let's just make nodes clickable to log their ID
+    
+    const nodes = document.querySelectorAll('g[id^="node-"]');
+    nodes.forEach(node => {
+        node.style.cursor = 'pointer';
+        node.addEventListener('mouseenter', () => {
+            node.style.opacity = '0.8';
+        });
+        node.addEventListener('mouseleave', () => {
+            node.style.opacity = '1.0';
+        });
+        node.addEventListener('click', (e) => {
+            console.log('Clicked node:', node.id);
+            e.stopPropagation();
+        });
+    });
+
+})();
+
+]]></script>
+  <g id="bg">
+    <rect x="0" y="0" width="1000" height="1400"  fill="#0B1220"/>
+  </g>
+  <g id="edges">
+    <path d="M 100.0 135.0 L 100.0 400.0 L 260.0 400.0 L 260.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 100.0 135.0 L 100.0 400.0 L 420.0 400.0 L 420.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 100.0 135.0 L 100.0 100.0 L 579.9999999999999 100.0 L 579.9999999999999 65.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 100.0 135.0 L 100.0 700.0 L 579.9999999999999 700.0 L 579.9999999999999 1265.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 100.0 135.0 L 100.0 400.0 L 740.0 400.0 L 740.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 100.0 1335.0 L 100.0 1000.0 L 260.0 1000.0 L 260.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 260.0 735.0 L 260.0 700.0 L 420.0 700.0 L 420.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 100.0 1335.0 L 100.0 1000.0 L 420.0 1000.0 L 420.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 420.0 735.0 L 420.0 400.0 L 579.9999999999999 400.0 L 579.9999999999999 65.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 420.0 735.0 L 420.0 1000.0 L 579.9999999999999 1000.0 L 579.9999999999999 1265.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 579.9999999999999 135.0 L 579.9999999999999 400.0 L 740.0 400.0 L 740.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 579.9999999999999 1335.0 L 579.9999999999999 1000.0 L 740.0 1000.0 L 740.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+    <path d="M 740.0 735.0 L 740.0 700.0 L 900.0 700.0 L 900.0 665.0" fill="none" stroke="#334155" stroke-width="1.5"/>
+  </g>
+  <g id="nodes">
+    <rect x="25.0" y="65.0" width="150" height="70" rx="5" ry="5" fill="#3B82F6" stroke="#334155" stroke-width="1.0"/>
+    <text x="100.0" y="95.0" font-size="14" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#E5E7EB">workflow</text>
+    <text x="100.0" y="115.0" font-size="10" font-family="sans-serif" text-anchor="middle" dominant-baseline="auto" font-weight="normal" fill="#E5E7EB" opacity="0.7">«component»</text>
+    <rect x="168.005" y="665.0" width="183.99" height="70" rx="5" ry="5" fill="#3B82F6" stroke="#334155" stroke-width="1.0"/>
+    <text x="260.0" y="695.0" font-size="14" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#E5E7EB">knowledge_augment</text>
+    <text x="260.0" y="715.0" font-size="10" font-family="sans-serif" text-anchor="middle" dominant-baseline="auto" font-weight="normal" fill="#E5E7EB" opacity="0.7">«class»</text>
+    <rect x="345.0" y="665.0" width="150" height="70" rx="5" ry="5" fill="#3B82F6" stroke="#334155" stroke-width="1.0"/>
+    <text x="420.0" y="695.0" font-size="14" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#E5E7EB">triage</text>
+    <text x="420.0" y="715.0" font-size="10" font-family="sans-serif" text-anchor="middle" dominant-baseline="auto" font-weight="normal" fill="#E5E7EB" opacity="0.7">«class»</text>
+    <rect x="504.9999999999999" y="65.0" width="150" height="70" rx="5" ry="5" fill="#3B82F6" stroke="#334155" stroke-width="1.0"/>
+    <text x="579.9999999999999" y="95.0" font-size="14" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#E5E7EB">direct_solve</text>
+    <text x="579.9999999999999" y="115.0" font-size="10" font-family="sans-serif" text-anchor="middle" dominant-baseline="auto" font-weight="normal" fill="#E5E7EB" opacity="0.7">«class»</text>
+    <rect x="488.0049999999999" y="1265.0" width="183.99" height="70" rx="5" ry="5" fill="#3B82F6" stroke="#334155" stroke-width="1.0"/>
+    <text x="579.9999999999999" y="1295.0" font-size="14" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#E5E7EB">fractal_decompose</text>
+    <text x="579.9999999999999" y="1315.0" font-size="10" font-family="sans-serif" text-anchor="middle" dominant-baseline="auto" font-weight="normal" fill="#E5E7EB" opacity="0.7">«class»</text>
+    <rect x="665.0" y="665.0" width="150" height="70" rx="5" ry="5" fill="#3B82F6" stroke="#334155" stroke-width="1.0"/>
+    <text x="740.0" y="695.0" font-size="14" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#E5E7EB">synthesize</text>
+    <text x="740.0" y="715.0" font-size="10" font-family="sans-serif" text-anchor="middle" dominant-baseline="auto" font-weight="normal" fill="#E5E7EB" opacity="0.7">«class»</text>
+    <rect x="25.0" y="1265.0" width="150" height="70" rx="5" ry="5" fill="#3B82F6" stroke="#334155" stroke-width="1.0"/>
+    <text x="100.0" y="1295.0" font-size="14" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#E5E7EB">START</text>
+    <text x="100.0" y="1315.0" font-size="10" font-family="sans-serif" text-anchor="middle" dominant-baseline="auto" font-weight="normal" fill="#E5E7EB" opacity="0.7">«interface»</text>
+    <rect x="825.0" y="665.0" width="150" height="70" rx="5" ry="5" fill="#3B82F6" stroke="#334155" stroke-width="1.0"/>
+    <text x="900.0" y="695.0" font-size="14" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#E5E7EB">END</text>
+    <text x="900.0" y="715.0" font-size="10" font-family="sans-serif" text-anchor="middle" dominant-baseline="auto" font-weight="normal" fill="#E5E7EB" opacity="0.7">«class»</text>
+  </g>
+</svg>
