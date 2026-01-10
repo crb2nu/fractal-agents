@@ -5,6 +5,9 @@ include:
 
 stages: [lint, test, build, publish]
 
+variables:
+  KANIKO_IMAGE: "gcr.io/kaniko-project/executor:debug"
+
 # Override base to use requirements.txt instead of pyproject.toml
 .python-base:
   image: python:3.12
@@ -40,7 +43,7 @@ test:
 build:docker:
   stage: build
   image:
-    name: gcr.io/kaniko-project/executor:debug
+    name: ${KANIKO_IMAGE}
     entrypoint: [""]
   variables:
     HARBOR_REGISTRY: registry.harbor.lan/flexinfer
@@ -56,7 +59,7 @@ build:docker:
       --cache=true
       --cache-repo="${HARBOR_REGISTRY}/${IMAGE_NAME}/cache"
   rules:
-    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # Deployment is handled by Flux GitOps - it monitors this repo and auto-deploys
 # when k8s/deployment.yaml changes. The image uses :latest which is updated
