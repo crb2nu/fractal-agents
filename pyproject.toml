@@ -7,7 +7,7 @@ name = "fractal-agents"
 version = "0.2.2"
 description = "Recursive agentic framework for complex task execution"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 license = { text = "MIT" }
 authors = [
     { name = "Cody Blevins", email = "cody@flexinfer.ai" }
@@ -27,7 +27,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "tenacity>=8.0.0",
     "lz4>=4.3.0",
-    "flexinfer-diagram-gen @ git+https://gitlab.flexinfer.ai/libs/py-diagram-gen.git@d68c17fdafed898638870393ad4a8f01b73332f2",
+    "flexinfer-diagram-gen @ git+https://gitlab.flexinfer.ai/libs/py-diagram-gen.git@5f43e4779157c89b4d93d99900d67131a7373bcf",
 ]
 
 [project.optional-dependencies]
