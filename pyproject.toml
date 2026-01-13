@@ -27,12 +27,12 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "tenacity>=8.0.0",
     "lz4>=4.3.0",
-    "flexinfer-diagram-gen>=0.3.1",
+    "flexinfer-diagram-gen @ git+https://gitlab.flexinfer.ai/libs/py-diagram-gen.git@d68c17fdafed898638870393ad4a8f01b73332f2",
 ]
 
 [project.optional-dependencies]
 observability = [
-    "flexinfer-observability>=0.3.0",
+    "flexinfer-observability @ git+https://gitlab.flexinfer.ai/libs/py-observability.git@d61a790a19fc7a600ba27384d20ad37fdb580d96",
 ]
 dev = [
     "pytest>=7.0.0",
@@ -45,6 +45,9 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fractal_agents"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.ruff]
 line-length = 100
