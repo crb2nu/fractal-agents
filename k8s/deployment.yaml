@@ -18,6 +18,11 @@ spec:
       labels:
         app: fractal-agents
     spec:
+      # Keep core on amd64 until the image is published as multi-arch.
+      # Without this, the pod can land on arm64 nodes and crash with:
+      # "exec /usr/local/bin/python: exec format error".
+      nodeSelector:
+        kubernetes.io/arch: amd64
       containers:
       - name: core
         image: registry.harbor.lan/flexinfer/fractal-agents:latest
@@ -57,4 +62,5 @@ spec:
             memory: "1Gi"
             cpu: "1000m"
       imagePullSecrets:
-        - name: gitlab-registry
+        # "gitlab-registry" is not present in ai; use the managed Harbor secret.
+        - name: harbor-creds

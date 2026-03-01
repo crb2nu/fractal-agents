@@ -79,3 +79,32 @@ Fractal Agents includes a real-time visualization dashboard to monitor the agent
 3.  **Open your browser:** Go to [http://localhost:8000](http://localhost:8000)
 
 The visualizer uses Redis Pub/Sub for instant updates and provides a Mandelbrot-style zoomable tree view and a recursive depth sunburst chart.
+
+## Kubernetes Stability Guardrails
+
+`k8s/deployment.yaml` intentionally pins `fractal-agents-core` to `amd64` nodes:
+
+- Current `fractal-agents` image is amd64-only.
+- Scheduling on arm64 nodes causes immediate crash loops with:
+  `exec /usr/local/bin/python: exec format error`.
+
+The deployment also uses `imagePullSecrets: harbor-creds` (managed in namespace `ai`).
+Do not switch this back to `gitlab-registry` unless that secret is recreated in `ai`.
+
+### Incident Verification Commands
+
+```bash
+# Pod and restart health
+kubectl -n ai get pods -l app=fractal-agents -o wide
+
+# Confirm node architecture placement
+kubectl -n ai get pod -l app=fractal-agents \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.nodeName}{"\n"}{end}'
+kubectl get node <node-name> -o jsonpath='{.status.nodeInfo.architecture}{"\n"}'
+
+# Confirm service endpoints are present
+kubectl -n ai get endpoints fractal-agents
+
+# Confirm Flux health for this app
+kubectl -n flux-system get kustomization fractal-agents
+```
