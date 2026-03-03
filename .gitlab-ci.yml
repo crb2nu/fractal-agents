@@ -26,8 +26,11 @@ variables:
     - pip install ruff mypy
 
 lint:
-  extends: .python-lint
-  image: python:3.11
+  extends: .python-base
+  stage: lint
+  script:
+    - ruff check src/
+    - ruff format --check src/
   allow_failure: false
 
 test:
