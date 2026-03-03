@@ -5,8 +5,9 @@ import sys
 from pathlib import Path
 
 from diagram_gen.analyzers.langgraph import LangGraphAnalyzer
-from diagram_gen.renderers.svg import SVGRenderer
 from diagram_gen.models import DiagramType, NodeType
+from diagram_gen.renderers.svg import SVGRenderer
+
 
 def main():
     parser = argparse.ArgumentParser(description="Visualize Fractal Agents / LangGraph workflows")
