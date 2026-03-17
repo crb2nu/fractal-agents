@@ -3,6 +3,8 @@ include:
   - project: "platform/gitops"
     file: "/ci/templates/python.yml"
 
+  - project: 'services/tech-radar'
+    file: '/ci/radar.yml'
 stages: [lint, test, build, publish]
 
 variables:
@@ -68,3 +70,6 @@ build:docker:
 # Deployment is handled by Flux GitOps - it monitors this repo and auto-deploys
 # when k8s/deployment.yaml changes. The image uses :latest which is updated
 # by the build:docker stage above.
+
+radar-scan:
+  extends: .radar-scan
