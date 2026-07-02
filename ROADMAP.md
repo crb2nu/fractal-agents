@@ -1,53 +1,33 @@
-# Roadmap: fractal-agents
+# fractal-agents Roadmap
 
-## Vision
+> Last Updated: 2026-07-02
+> Tier: 2 (see workspace AGENTS.md "Portfolio Tiers")
+> Tracking Issue: none — maintain-mode; backlog = [open issues](https://gitlab.flexinfer.ai/libs/fractal-agents/-/issues)
 
-To provide a recursive, self-similar agentic framework ("Fractal Nodes") that enables infinite context depth and self-optimizing task execution on constrained hardware through intelligent state compression and distributed memory.
+## Current Status
 
-## Current Status (v0.2.0)
+Recursive "fractal node" agent framework (v0.2.0): FractalNode engine with triage/synthesis, Redis-backed LZ4-compressed "frozen memory", LangGraph bridge, LiteLLM model-agnostic inference, human-in-the-loop interrupts, and tree-event/AIMetrics observability. Maintain-mode: last organic change 2026-01-07 (Harbor publish variable fixes); 2026-03 commits are CI fixes (docker publish tag-gating, ruff lint) and the 2026-03-17 workspace-wide tech-radar CI bulk change. Default branch is `master`.
 
-- **Core**: `FractalNode` implementation with dynamic triage and cohesive synthesis.
-- **Memory**: Redis-backed "Frozen Memory" with LZ4 compression.
-- **Integration**: `LangGraph` bridge for workflow orchestration.
-- **LLM**: LiteLLM integration for model-agnostic inference.
-- **HITL**: Human-in-the-Loop interrupt system for user feedback.
-- **Observability**: Tree event emission and AIMetrics integration.
+- **Plan store**: plan-workspace-portfolio-refresh-2026-h2-roadmaps-quality-baselin-f3db23 (this refresh; no repo-specific active plan)
+- **Deployed**: not deployed (library; docker publish is tag-gated only)
+- **CI**: python template family (platform/gitops `ci/templates/python.yml` + tech-radar `radar.yml`)
 
-## Completed (Q1 2026)
+## Now
 
-### Core Stability & Resilience
+- Maintenance only — dependency and CI fixes as needed; no active feature work.
 
-- [x] **Recursive Engine**: Hardening the execution engine with proper error boundaries, timeouts, and infinite loop detection.
-- [x] **State Compression**: Implement LZ4 compression for "Frozen Memory" to minimize Redis footprint during deep recursion.
-- [x] **Context Summarization**: Automatic summarization of parent contexts using cheaper models before passing to child nodes.
-- [x] **Explicit State Reducers**: Define strict TypedDict schemas for node state and use reducer functions.
+## Next
 
-### Observability
+- [ ] Pre-commit hooks + standard Makefile targets if flagged at claim time by portfolio-refresh slice 7 (quality gate wave B, pending)
 
-- [x] **Real-time Visualization**: Export tree state events via `FractalMetrics` for visualizing fractal tree growth.
-- [x] **AIMetrics Integration**: Optional integration with `py-observability` for LLM token tracking.
+## Later
 
-### Human-in-the-Loop
+Directional themes salvaged from the 2026-01 roadmap (unfunded; promote to issues if picked up):
 
-- [x] **Interrupt Signals**: `InterruptManager` to pause execution and request user feedback.
-- [x] **Callback Mechanism**: Register async callbacks for handling interrupt requests.
+- Multi-agent handoff protocols between specialized agents
+- fi-mcp-kit integration for dynamic tool discovery
+- Distributing sibling nodes across GPU workers/pods
 
-## Future Milestones (Q2 2026+)
+## Backlog
 
-### Advanced Patterns
-
-- [ ] **Multi-Agent Handoffs**: Implement explicit handoff protocols between specialized agents (e.g., 'Researcher' -> 'Coder') using LangGraph-style state transitions.
-
-### Advanced Tooling
-
-- [ ] **MCP Integration**: Native support for `fi-mcp-kit` to allow agents to dynamically discover and bind tools.
-- [ ] **Self-Modification**: Safe sandboxed environment for agents to write and execute ephemeral Python scripts.
-
-### Scale
-
-- [ ] **Multi-GPU/Node**: Distribute sibling nodes across different GPU workers or Kubernetes pods.
-
-## Maintenance
-
-- [x] Update `langgraph` and `litellm` dependencies.
-- [x] Refine `pydantic` models for state serialization.
+Full backlog: [P1](https://gitlab.flexinfer.ai/libs/fractal-agents/-/issues/?label_name[]=P1) · [P2](https://gitlab.flexinfer.ai/libs/fractal-agents/-/issues/?label_name[]=P2) · [P3](https://gitlab.flexinfer.ai/libs/fractal-agents/-/issues/?label_name[]=P3) · [all open](https://gitlab.flexinfer.ai/libs/fractal-agents/-/issues)
